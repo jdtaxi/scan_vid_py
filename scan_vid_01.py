@@ -3,9 +3,10 @@ import json
 import time
 import re
 import random
+import math
 import sys
 from playwright.sync_api import sync_playwright
-from .depend/tk2cf import DataWorkerClient
+from cf_db import CF_vid,CF_TOKEN
 # 尝试导入混淆库
 try:
     from playwright_stealth import stealth_sync
@@ -23,13 +24,60 @@ def log(msg, level="INFO"):
     icons = {"INFO": "ℹ️", "SUCCESS": "✅", "ERROR": "❌", "WARN": "⚠️", "TIMER": "⏱️"}
     print(f"[{timestamp}] {icons.get(level, '•')} {msg}", flush=True)
 
+def getdata(my_array):
+    # 1. 获取当前脚本文件名（不含扩展名）
+    file_name = os.path.splitext(os.path.basename(__file__))[0]
+    
+    # 2. 提取最后两位数字并转为整数
+    # 假设文件名是 'script_05.py'，则 index 为 5
+    try:
+        index = int(file_name[-2:])
+    except ValueError:
+        raise ValueError("文件名末尾必须是两位数字，例如：data_process_02.py")
+    
+    # 3. 准备你的数据数组
+    
+    
+    # 4. 将数组分成10份
+    def split_array(data, num_parts):
+        avg = len(data) / float(num_parts)
+        out = []
+        last = 0.0
+    
+        while last < len(data):
+            out.append(data[int(last):int(last + avg)])
+            last += avg
+    
+        return out
+    
+    parts = split_array(my_array, 10)
+    
+    # 5. 根据索引获取对应的部分
+    # 注意：如果 index 是从 1 开始的（01-10），需要减 1
+    current_part = parts[index] 
+    
+    print(f"当前脚本索引: {index}")
+    print(f"获取到的数据片段长度: {len(current_part)}")
+    print(f"片段内容: {current_part}")
+    return current_part
+
+
 def run_task():
-    vid_file = "vid.json"
-    if not os.path.exists(vid_file):
-        log("vid.json 不存在", "ERROR")
-        return
-    with open(vid_file, "r") as f:
-        vender_ids = json.load(f)
+    vender_ids = [];
+    copies = 23;
+    // 获取北京时间小时数
+    // Cloudflare Worker 的 Date.now() 是 UTC 时间，+8 小时得到北京时间
+    const bjTime = new Date(Date.now() + 8 * 60 * 60 * 1000);
+    const copy = bjTime.getUTCHours(); // 获取 0-23 之间的小时数
+    # 初始化
+    cf_vid = CF_VID("https://your-worker.workers.dev", "my-secret-key")
+    
+    result = cf_vid.get_data_slice(copy=copy, copies=copies)
+        
+    data = result.get("data", [])
+    print(f"正在处理第 {copy+1} 份数据，获取到 {len(data)} 条")
+    vender_ids=getdata(my_array)
+        
 
     script_start_time = time.time()
     consecutive_errors = 0 # 连续错误计数器
