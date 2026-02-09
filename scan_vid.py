@@ -7,16 +7,20 @@ import sys
 from datetime import datetime, timedelta, timezone
 from playwright.sync_api import sync_playwright
 from cf_db import CF_VID, CF_TOKEN
-
+# 尝试导入混淆库
+try:
+    from playwright_stealth import stealth_sync
+except ImportError:
+    def stealth_sync(page): pass
 # ================= 配置区 =================
 API_KEY = os.environ.get("API_KEY", "leaflow")
 TARGET_PATTERN = os.environ.get("TARGET_PATTERN", "2PAAf74aG3D61qvfKUM5dxUssJQ9")
 WORKER_VID_URL = os.environ.get("WORKER_VID_URL", "https://vid.zshyz.us.ci")
 WORKER_TOKEN_URL = os.environ.get("WORKER_TOKEN_URL", "https://token.zshyz.us.ci")
 RUN_DURATION_MINUTES = int(os.environ.get("RUN_DURATION_MINUTES", 10))
-MAX_CONSECUTIVE_ERRORS = int(os.environ.get("MAX_CONSECUTIVE_ERRORS", 30))
+MAX_CONSECUTIVE_ERRORS = int(os.environ.get("MAX_CONSECUTIVE_ERRORS", 10))
 NUM_PARTS = int(os.environ.get("NUM_PARTS", 10))
-COPIES = int(os.environ.get("COPIES", 24))
+COPIES = int(os.environ.get("COPIES", 23))
 # =========================================
 
 stats = {"success": 0, "hit": 0, "blocked": 0, "error": 0, "total_scanned": 0}
@@ -49,11 +53,24 @@ def run_task():
     if not vender_ids: return
 
     script_start_time = time.time()
-    consecutive_errors = 0 
+    consecutive_errors = 0 # 连续错误计数器
     
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        # 优化 1：启动参数优化，禁用自动化控制特征
+        browser = p.chromium.launch(
+            headless=True,
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-infobars",
+                "--window-position=0,0",
+                "--ignore-certificate-errors",
+            ]
+        )
         
+        # 优化 2：深度伪造浏览器上下文
+        # 模拟 iPhone 13 Pro 的典型硬件指纹
         context = browser.new_context(
             user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
             viewport={'width': 390, 'height': 844},
@@ -61,85 +78,96 @@ def run_task():
             is_mobile=True,
             has_touch=True,
             locale="zh-CN",
-            timezone_id="Asia/Shanghai",
-            extra_http_headers={
-                "Origin": "https://shop.m.jd.com",
-                "Content-Type": "application/x-www-form-urlencoded",
-                "Accept": "application/json, text/plain, */*"
-            }
+            timezone_id="Asia/Shanghai"
         )
 
-        for vid in vender_ids:
-            if (time.time() - script_start_time) / 60 >= RUN_DURATION_MINUTES:
-                log("达到时长上限，停止", "INFO")
-                break
+        log("任务启动：已加载深度 Stealth 优化配置", "INFO")
 
-            try:
-                # 纯协议请求，绕过页面渲染
-                response = context.request.post(
-                    "https://api.m.jd.com/client.action",
-                    data=f"functionId=whx_getShopHomeActivityInfo&body=%7B%22venderId%22%3A%22{vid}%22%2C%22source%22%3A%22m-shop%22%7D&appid=shop_m_jd_com&clientVersion=11.0.0&client=wh5",
-                    ##headers={"Referer": f"https://shop.m.jd.com/shop/home?venderId={vid}"},
-                    headers={"Referer": f"https://m.jd.com"},
-                    timeout=12000 # 适当增加超时容错
-                )
+        try:
+            for vid in vender_ids:
+                if (time.time() - script_start_time) / 60 >= RUN_DURATION_MINUTES:
+                    log("达到时长上限，停止", "TIMER")
+                    break
+
+                page = context.new_page()
                 
-                raw_res = response.text()
-                # 网页状态码（HTTP Status Code，如 200, 403 等）
-                http_status = response.status
+                # 优化 3：Stealth 注入优化
+                stealth_sync(page)
                 
-                if not raw_res or http_status != 200:
-                    log(f"❌ 店铺 {vid} | HTTP状态: {http_status} | 无数据返回", "ERROR")
-                    log(f"原始响应: {raw_res}", "RAW")
-                    stats["error"] += 1
-                    consecutive_errors += 1
-                    continue
+                # 优化 4：额外注入 JavaScript 屏蔽 Webdriver 检测
+                page.add_init_script("""
+                    Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+                    window.chrome = { runtime: {} };
+                    Object.defineProperty(navigator, 'languages', {get: () => ['zh-CN', 'zh']});
+                """)
 
-                res_json = json.loads(raw_res)
-                code = str(res_json.get("code", "unknown"))
-
-                if code == "0":
-                    stats["success"] += 1
-                    consecutive_errors = 0
+                try:
+                    log(f"正在扫描店铺: {vid}", "INFO")
+                    # 降低加载压力
+                    page.goto(f"https://shop.m.jd.com/shop/home?venderId={vid}", 
+                              wait_until="domcontentloaded", # 只要 DOM 好了就执行，减少被 WAF 捕捉的时间
+                              timeout=20000)
                     
-                    isv_url = res_json.get("result", {}).get("signStatus", {}).get("isvUrl", "")
-                    if TARGET_PATTERN in isv_url:
-                        token_match = re.search(r'token=([^&]+)', isv_url)
-                        token = token_match.group(1) if token_match else "N/A"
-                        log(f"🎯 命中店铺 {vid} | Token: {token[:12]}...", "SUCCESS")
-                        stats["hit"] += 1
+                    # 模拟随机人类行为：停留 1-3 秒
+                    time.sleep(random.uniform(1, 3))
+
+                    fetch_script = f"""
+                    async () => {{
+                        try {{
+                            const res = await fetch("https://api.m.jd.com/client.action", {{
+                                "method": "POST",
+                                "headers": {{ "content-type": "application/x-www-form-urlencoded" }},
+                                "body": "functionId=whx_getShopHomeActivityInfo&body=%7B%22venderId%22%3A%22{vid}%22%2C%22source%22%3A%22m-shop%22%7D&appid=shop_m_jd_com&clientVersion=11.0.0&client=wh5"
+                            }});
+                            return await res.json();
+                        }} catch (e) {{
+                            return {{ code: "-1", msg: e.toString() }};
+                        }}
+                    }}
+                    """
+                    res_json = page.evaluate(fetch_script)
+
+                    if res_json and res_json.get("code") == "0":
+                        stats["success"] += 1
+                        stats["total_scanned"] += 1
+                        # 成功响应，重置连续错误计数
+                        consecutive_errors = 0
+                        isv_url = res_json.get("result", {}).get("signStatus", {}).get("isvUrl", "")
+                        if TARGET_PATTERN in isv_url:
+                            token = re.search(r'token=([^&]+)', isv_url).group(1) if "token=" in isv_url else "N/A"
+                            log(f"🎯 命中店铺 {vid} | Token: {token}", "SUCCESS")
+                            # 上传并打印反馈
+                            up_res = db_token.upload({"vid": vid, "token": token, "type": "hit"})
+                            log(f"📡 同步结果: OK={up_res.get('ok')} | Http={up_res.get('code')} | Msg={up_res.get('body')}", "SYNC")
+                        else:
+                            log(f"店铺 {vid} 正常无活动", "INFO")
+                    else:
+                        stats["error"] += 1
+                        stats["total_scanned"] += 1
+                        # 触发风控或接口错误
+                        consecutive_errors += 1
+                        error_msg = res_json.get('msg', '风控拦截')
+                        log(f"店铺 {vid} 异常 ({consecutive_errors}/{MAX_CONSECUTIVE_ERRORS}): {error_msg}", "WARN")
                         
-                        # 上传并打印反馈
-                        up_res = db_token.upload({"vid": vid, "token": token, "type": "hit"})
-                        log(f"📡 同步结果: OK={up_res.get('ok')} | Http={up_res.get('code')} | Msg={up_res.get('body')}", "SYNC")
-                else:
-                    # 只有接口 Code 不为 0 时打印详细日志
-                    level = "WARN" if code == "3" else "ERROR"
-                    log(f"⚠️ 店铺 {vid} | 接口Code: {code} | 数据异常", level)
-                    log(f"完整返回数据: {raw_res}", "RAW")
-                    
-                    if code == "3": stats["blocked"] += 1
-                    else: stats["error"] += 1
+                        if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
+                            log("连续报错 10 次，判断当前 IP 已被京东封锁，程序自毁中...", "ERROR")
+                            break
+
+                except Exception as e:
                     consecutive_errors += 1
+                    log(f"页面崩溃 ({consecutive_errors}/{MAX_CONSECUTIVE_ERRORS}): {e}", "WARN")
+                    if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
+                        break
+                finally:
+                    page.close()
+                
+                # 随机冷却，保护 IP
+                time.sleep(random.uniform(3, 7))
 
-            except Exception as e:
-                log(f"❌ 请求崩溃 {vid}: {str(e)[:100]}", "ERROR")
-                stats["error"] += 1
-                consecutive_errors += 1
+        finally:
+            browser.close()
+            log("任务结束，清理完成", "INFO")
 
-            # 统计汇总
-            stats["total_scanned"] += 1
-            if stats["total_scanned"] % 10 == 0:
-                log(f"📊 阶段汇总({stats['total_scanned']}): 成功:{stats['success']} | 命中:{stats['hit']} | 拦截(Code3):{stats['blocked']} | 异常:{stats['error']}", "STATS")
-
-            if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
-                log(f"连续异常 {MAX_CONSECUTIVE_ERRORS} 次，判定 IP 环境失效", "ERROR")
-                break
-            
-            time.sleep(random.uniform(6, 8))
-
-        browser.close()
-        log(f"任务结束。总计扫描: {stats['total_scanned']} | 最终命中: {stats['hit']}", "INFO")
 
 if __name__ == "__main__":
     run_task()
