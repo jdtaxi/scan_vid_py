@@ -1,15 +1,15 @@
-name: Sync ip2free Proxies to Secrets
+name: Auto Update Socksproxy Secret
 
 on:
   schedule:
-    - cron: '*/30 * * * *'
-  workflow_dispatch:
+    - cron: '*/30 * * * *'  # 每30分钟运行
+  workflow_dispatch:        # 支持手动点运行
 
 jobs:
-  update:
+  build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout Code
         uses: actions/checkout@v3
 
       - name: Set up Python
@@ -17,11 +17,13 @@ jobs:
         with:
           python-version: '3.9'
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: pip install requests pynacl
 
-      - name: Run logic
+      - name: Run Sync Script
         env:
+          # 以下三个变量均需在仓库的 Secrets 中配置
           GH_PAT: ${{ secrets.GH_PAT }}
           IP2FREE_ACCOUNTS: ${{ secrets.IP2FREE_ACCOUNTS }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: python -u ip2free_fetcher.py
