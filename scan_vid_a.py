@@ -96,6 +96,7 @@ def run_task():
 
         try:
             for vid in vender_ids:
+                stats['total_scanned'] += 1
                 if (time.time() - script_start_time) / 60 >= RUN_DURATION_MINUTES:
                     log("达到时长上限，停止", "TIMER")
                     break
@@ -138,7 +139,7 @@ def run_task():
 
                     if res_json and res_json.get("code") == "0":
                         stats["success"] += 1
-                        stats['total_scanned'] += 1
+                        
                         consecutive_errors = 0
                         isv_url = res_json.get("result", {}).get("signStatus", {}).get("isvUrl", "")
                         if TARGET_PATTERN in isv_url:
@@ -150,7 +151,7 @@ def run_task():
                             log(f"{stats['total_scanned']}->店铺 {vid} 正常无活动", "INFO")
                     else:
                         stats["error"] += 1
-                        stats['total_scanned'] += 1
+                        
                         consecutive_errors += 1
                         log(f"店铺 {vid} 异常 ({consecutive_errors}/{MAX_CONSECUTIVE_ERRORS})", "WARN")
                         cooldown_sleep(consecutive_errors)
