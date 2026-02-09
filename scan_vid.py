@@ -26,9 +26,12 @@ NUM_PARTS = int(os.environ.get("NUM_PARTS", 10))
 COPIES = int(os.environ.get("COPIES", 24))
 # =========================================
 
+# 统计全局变量
+stats = {"success": 0, "jump": 0, "hit": 0, "error": 0}
+
 def log(msg, level="INFO"):
     timestamp = time.strftime("%H:%M:%S", time.localtime())
-    icons = {"INFO": "ℹ️", "SUCCESS": "✅", "ERROR": "❌", "WARN": "⚠️", "TIMER": "⏱️"}
+    icons = {"INFO": "ℹ️", "SUCCESS": "✅", "ERROR": "❌", "WARN": "⚠️", "TIMER": "⏱️", "STATS": "📊"}
     print(f"[{timestamp}] {icons.get(level, '•')} {msg}", flush=True)
 
 def split_and_get_my_part(data_list):
@@ -51,7 +54,7 @@ def run_task():
     result = cf_vid.get_data_slice(copy=current_hour, copies=COPIES)
     hour_data = result.get("data", [])
     vender_ids = split_and_get_my_part(hour_data)
-    log(f"任务分配: 小时总数 {len(hour_data)} -> 本脚本执行 {len(vender_ids)}", "INFO")
+    log(f"任务分配: 本脚本执行 {len(vender_ids)}", "INFO")
 
     if not vender_ids: return
 
@@ -73,15 +76,10 @@ def run_task():
         
         context = browser.new_context(
             user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
-            viewport={'width': 390, 'height': 844},
-            device_scale_factor=3,
-            is_mobile=True,
-            has_touch=True,
-            locale="zh-CN",
-            timezone_id="Asia/Shanghai"
+            viewport={'width': 390, 'height': 844}
         )
 
-        log("任务启动：已加载深度 Stealth 优化配置", "INFO")
+        log("任务启动：Stealth 模式已就绪", "INFO")
 
         for vid in vender_ids:
             if (time.time() - script_start_time) / 60 >= RUN_DURATION_MINUTES:
@@ -89,27 +87,26 @@ def run_task():
                 break
 
             success_fetched = False
-            # 内部重试循环
             for attempt in range(MAX_RETRIES):
                 page = context.new_page()
                 stealth_sync(page)
-                # 注入
-                page.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-
+                
                 try:
-                    log(f"正在扫描店铺: {vid} (尝试 {attempt+1}/{MAX_RETRIES})")
+                    log(f"正在扫描店铺: {vid} ({attempt+1}/{MAX_RETRIES})")
                     
-                    # 使用 networkidle 等待，虽然慢点但稳
+                    # 使用较温和的等待策略
                     page.goto(f"https://shop.m.jd.com/shop/home?venderId={vid}", 
-                             wait_until="networkidle", timeout=20000)
+                             wait_until="domcontentloaded", timeout=20000)
                     
-                    # 额外给 2 秒让 H5 的自跳转逻辑跑完
-                    time.sleep(2)
+                    # 强等 3 秒让跳转逻辑稳定
+                    time.sleep(3)
 
-                    if "captcha" in page.url or "login" in page.url:
-                        log(f"店铺 {vid} 触发环境校验，跳过", "WARN")
-                        # 注意：这里不增加 consecutive_errors，因为这是环境问题不是代码失效
-                        break 
+                    # 记录跳转后的 URL
+                    current_url = page.url
+                    if "venderId=" not in current_url:
+                        log(f"⚠️ 页面跳转至非店铺页: {current_url}", "WARN")
+                        stats["jump"] += 1
+                        break # 跳出重试循环
 
                     fetch_script = f"""
                     async () => {{
@@ -127,40 +124,53 @@ def run_task():
                     code = res_json.get("code", "unknown")
 
                     if code == "0":
-                        consecutive_errors = 0 # 只有 code 0 才重置
+                        stats["success"] += 1
+                        consecutive_errors = 0
                         success_fetched = True
+                        
                         isv_url = res_json.get("result", {}).get("signStatus", {}).get("isvUrl", "")
                         if TARGET_PATTERN in isv_url:
                             token = re.search(r'token=([^&]+)', isv_url).group(1) if "token=" in isv_url else "N/A"
                             log(f"🎯 命中店铺 {vid} | Token: {token}", "SUCCESS")
-                            cf_token.upload({"vid": vid, "token": token, "type": "hit"})
+                            stats["hit"] += 1
+                            
+                            # --- 增强的 Token 上传日志 ---
+                            log(f"📡 正在上传 Token 至云端数据库...", "INFO")
+                            upload_res = cf_token.upload({"vid": vid, "token": token, "type": "hit"})
+                            log(f"📤 云端响应: {json.dumps(upload_res)}", "INFO")
+                            # ---------------------------
                         else:
                             log(f"店铺 {vid} | Code: {code} | 正常无活动", "INFO")
-                        break # 成功了，退出 attempt 循环
+                        break 
                     else:
-                        # 只有接口明确返回非0，才认为是该 IP 被风控了，增加计数
+                        stats["error"] += 1
                         consecutive_errors += 1
-                        log(f"店铺 {vid} | Code: {code} | 接口响应异常 ({consecutive_errors}/{MAX_CONSECUTIVE_ERRORS})", "WARN")
+                        log(f"店铺 {vid} | Code: {code} | 接口拦截", "WARN")
                         break
 
                 except Exception as e:
-                    # 页面跳转/上下文销毁等异常，不增加 consecutive_errors
-                    if "destroyed" in str(e).lower() or "navigation" in str(e).lower():
-                        log(f"⚠️ 页面跳转干扰，跳过 {vid}", "WARN")
+                    error_msg = str(e)
+                    current_url_error = page.url if page else "unknown"
+                    if "destroyed" in error_msg.lower() or "navigation" in error_msg.lower():
+                        log(f"⚠️ 跳转干扰导致上下文销毁 | 目标URL: {current_url_error}", "WARN")
+                        stats["jump"] += 1
                         break 
                     else:
-                        log(f"❌ 运行错误: {str(e)[:50]}", "ERROR")
+                        log(f"❌ 运行异常: {error_msg[:50]}", "ERROR")
                 finally:
                     page.close()
 
+            # 实时进度条显示
+            log(f"📊 当前进度: [成功:{stats['success']}] [跳转:{stats['jump']}] [命中:{stats['hit']}] [异常:{stats['error']}]", "STATS")
+
             if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
-                log(f"🚨 连续接口异常达 {MAX_CONSECUTIVE_ERRORS} 次，停止运行", "ERROR")
+                log(f"🚨 连续接口报错达 {MAX_CONSECUTIVE_ERRORS} 次，停止", "ERROR")
                 break
             
-            time.sleep(random.uniform(1, 3)) # 降低冷却，提高效率
+            time.sleep(random.uniform(1.5, 3))
 
         browser.close()
-        log("任务结束", "INFO")
+        log("任务圆满结束", "INFO")
 
 if __name__ == "__main__":
     run_task()
