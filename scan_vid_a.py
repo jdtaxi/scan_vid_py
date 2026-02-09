@@ -108,21 +108,19 @@ def run_task():
                         // 1. 深度隐藏 WebDriver
                         Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
                         
-                        // 2. 模拟真实的 Chrome 环境（针对移动端可进一步伪造）
+                        // 2. 模拟真实的 Chrome 环境
                         window.chrome = { runtime: {}, loadTimes: function() {}, csi: function() {}, app: {} };
                         
                         // 3. 语言与插件伪造
                         Object.defineProperty(navigator, 'languages', {get: () => ['zh-CN', 'zh', 'en']});
-                        Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]}); // 避免为空
+                        Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});
                 
-                        // 4. 优化 Canvas 混淆：注入微小噪点而非直接破坏
-                        // 直接返回“随机乱码”会导致图片格式损坏，被风控识别为非法篡改
+                        // 4. 优化 Canvas 混淆
                         const originalCanvasToDataURL = HTMLCanvasElement.prototype.toDataURL;
                         HTMLCanvasElement.prototype.toDataURL = function(type) {
                             if (type === 'image/png') {
                                 const ctx = this.getContext('2d');
                                 if (ctx) {
-                                    // 在坐标 (1, 1) 绘制一个肉眼不可见但能改变特征值的像素
                                     ctx.fillStyle = 'rgba(255, 255, 255, 0.01)';
                                     ctx.fillRect(1, 1, 1, 1);
                                 }
@@ -130,10 +128,9 @@ def run_task():
                             return originalCanvasToDataURL.apply(this, arguments);
                         };
                 
-                        // 5. 补充：WebGL 渲染器伪造（非常重要）
+                        // 5. WebGL 渲染器伪造
                         const getParameter = WebGLRenderingContext.prototype.getParameter;
                         WebGLRenderingContext.prototype.getParameter = function(parameter) {
-                            // 伪装显卡信息为常见移动端/桌面端硬件
                             if (parameter === 37445) return 'Apple Inc.'; 
                             if (parameter === 37446) return 'Apple GPU';
                             return getParameter.apply(this, arguments);
@@ -142,16 +139,13 @@ def run_task():
                 """)
 
                 try:
-                    # ======== 访问店铺（完全按你给的版本） ========
-                    #log(f"正在扫描店铺: {vid}", "INFO")
+                    # ======== 访问店铺 ========
                     page.goto(
                         f"https://m.jd.com",
-                        #f"https://shop.m.jd.com/shop/home?venderId={vid}",
                         wait_until="domcontentloaded",
                         timeout=20000
                     )
                     page.mouse.move(random.randint(0, 100), random.randint(0, 100))
-                    # 模拟向下滚动一屏再向上滚动一点
                     page.mouse.wheel(0, random.randint(500, 800))
                     time.sleep(1)
                     page.mouse.wheel(0, -200)
@@ -173,11 +167,9 @@ def run_task():
                     }}
                     """
                     res_json = page.evaluate(fetch_script)
-                    # ============================================
 
                     if res_json and res_json.get("code") == "0":
                         stats["success"] += 1
-                        
                         consecutive_errors = 0
                         isv_url = res_json.get("result", {}).get("signStatus", {}).get("isvUrl", "")
                         if TARGET_PATTERN in isv_url:
@@ -189,10 +181,11 @@ def run_task():
                             log(f"{stats['total_scanned']}->店铺 {vid} 正常无活动", "INFO")
                     else:
                         stats["error"] += 1
-                        
                         consecutive_errors += 1
-                        log(f"{stats['total_scanned']}->店铺 {vid} 异常 code {res_json.get("code")}({consecutive_errors}/{MAX_CONSECUTIVE_ERRORS})", "WARN")
+                        log(f"{stats['total_scanned']}->店铺 {vid} 异常 code {res_json.get('code')}({consecutive_errors}/{MAX_CONSECUTIVE_ERRORS})", "WARN")
                         cooldown_sleep(consecutive_errors)
+                        if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
+                            break
 
                 except Exception as e:
                     consecutive_errors += 1
