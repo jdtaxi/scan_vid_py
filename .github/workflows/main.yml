@@ -1,17 +1,18 @@
-name: JD Shop Scanner
+name: VID Scanner
 
 on:
   workflow_dispatch: # 手动触发
   schedule:
-    - cron: '0 */2 * * *' # 每 2 小时运行一次
+    - cron: '0 * * * *' # 每小时运行一次
 
 jobs:
-  run-scanner:
+  scan:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # 这里定义并行索引，比如 1 到 3
+        index: ["01", "02", "03"]
     
-    # 设置超时时间，防止脚本异常卡死消耗额度
-    timeout-minutes: 15
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -19,25 +20,27 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
+          python-version: '3.10'
 
       - name: Install Dependencies
         run: |
           pip install playwright playwright-stealth requests
-          # 安装 Chromium 浏览器及其依赖
           playwright install chromium
-          playwright install-deps chromium
 
-      - name: Run JD Stealth Scanner
-        # 如果脚本中使用了 secrets（比如通知 Token），请在此处配置
+      - name: Run Scanner
         env:
-          PYTHONUNBUFFERED: "1" # 实时输出日志，方便观察连续报错情况
-        run: python -u scan_vid_01.py
-
-      - name: Upload Logs (Optional)
-        if: always() # 无论成功失败都保存
-        uses: actions/upload-artifact@v4
-        with:
-          name: scanner-logs
-          path: ./*.log
-        
+          # 读取 Secrets
+          API_KEY: ${{ secrets.API_KEY }}
+          TARGET_PATTERN: ${{ secrets.TARGET_PATTERN }}
+          # 读取 Variables
+          WORKER_VID_URL: ${{ vars.WORKER_VID_URL }}
+          WORKER_TOKEN_URL: ${{ vars.WORKER_TOKEN_URL }}
+          RUN_DURATION_MINUTES: ${{ vars.RUN_DURATION_MINUTES }}
+          MAX_CONSECUTIVE_ERRORS: ${{ vars.MAX_CONSECUTIVE_ERRORS }}
+          MAX_RETRIES: ${{ vars.MAX_RETRIES }}
+          NUM_PARTS: ${{ vars.NUM_PARTS }}
+          COPIES: ${{ vars.COPIES }}
+        # 根据矩阵索引重命名并运行，确保切片逻辑正确
+        run: |
+          cp scan_vid_01.py scan_vid_${{ matrix.index }}.py
+          python -u scan_vid_${{ matrix.index }}.py
