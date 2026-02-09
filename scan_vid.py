@@ -52,9 +52,8 @@ def run_task():
     consecutive_errors = 0 
     
     with sync_playwright() as p:
-        # 仅使用 context 发起请求，不打开浏览器 Page
         browser = p.chromium.launch(headless=True)
-        # 修复 Auth Header，确保 401 认证问题解决
+        # 确保 Authorization 格式正确以修复之前的 401 错误
         auth_header = f"Bearer {API_KEY}" if not API_KEY.startswith("Bearer ") else API_KEY
         
         context = browser.new_context(
@@ -73,21 +72,25 @@ def run_task():
                 break
 
             try:
-                # 直接发起 HTTP POST 请求，避开所有页面脚本干扰
-                # 
+                # 纯协议请求，绕过页面渲染
                 response = context.request.post(
                     "https://api.m.jd.com/client.action",
                     data=f"functionId=whx_getShopHomeActivityInfo&body=%7B%22venderId%22%3A%22{vid}%22%2C%22source%22%3A%22m-shop%22%7D&appid=shop_m_jd_com&clientVersion=11.0.0&client=wh5",
-                    headers={
-                        "Referer": f"https://shop.m.jd.com/shop/home?venderId={vid}"
-                    },
-                    timeout=10000
+                    headers={"Referer": f"https://shop.m.jd.com/shop/home?venderId={vid}"},
+                    timeout=12000 # 适当增加超时容错
                 )
                 
-                # 打印原始返回数据
                 raw_res = response.text()
-                log(f"VID: {vid} | 原始返回: {raw_res}", "RAW")
+                # 网页状态码（HTTP Status Code，如 200, 403 等）
+                http_status = response.status
                 
+                if not raw_res or http_status != 200:
+                    log(f"❌ 店铺 {vid} | HTTP状态: {http_status} | 无数据返回", "ERROR")
+                    log(f"原始响应: {raw_res}", "RAW")
+                    stats["error"] += 1
+                    consecutive_errors += 1
+                    continue
+
                 res_json = json.loads(raw_res)
                 code = str(res_json.get("code", "unknown"))
 
@@ -99,24 +102,24 @@ def run_task():
                     if TARGET_PATTERN in isv_url:
                         token_match = re.search(r'token=([^&]+)', isv_url)
                         token = token_match.group(1) if token_match else "N/A"
-                        log(f"🎯 命中店铺 {vid} | Token: {token}", "SUCCESS")
+                        log(f"🎯 命中店铺 {vid} | Token: {token[:12]}...", "SUCCESS")
                         stats["hit"] += 1
                         
-                        # 同步数据库
+                        # 上传并打印反馈
                         up_res = db_token.upload({"vid": vid, "token": token, "type": "hit"})
-                        # 重点显示上传反馈
                         log(f"📡 同步结果: OK={up_res.get('ok')} | Http={up_res.get('code')} | Msg={up_res.get('body')}", "SYNC")
                 else:
-                    if code == "3":
-                        log(f"⚠️ 店铺 {vid} 被拦截 (Code 3)", "WARN")
-                        stats["blocked"] += 1
-                    else:
-                        log(f"❌ 店铺 {vid} 接口异常 (Code {code})", "ERROR")
-                        stats["error"] += 1
+                    # 只有接口 Code 不为 0 时打印详细日志
+                    level = "WARN" if code == "3" else "ERROR"
+                    log(f"⚠️ 店铺 {vid} | 接口Code: {code} | 数据异常", level)
+                    log(f"完整返回数据: {raw_res}", "RAW")
+                    
+                    if code == "3": stats["blocked"] += 1
+                    else: stats["error"] += 1
                     consecutive_errors += 1
 
             except Exception as e:
-                log(f"❌ 请求失败 {vid}: {str(e)[:100]}", "ERROR")
+                log(f"❌ 请求崩溃 {vid}: {str(e)[:100]}", "ERROR")
                 stats["error"] += 1
                 consecutive_errors += 1
 
@@ -126,14 +129,13 @@ def run_task():
                 log(f"📊 阶段汇总({stats['total_scanned']}): 成功:{stats['success']} | 命中:{stats['hit']} | 拦截(Code3):{stats['blocked']} | 异常:{stats['error']}", "STATS")
 
             if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
-                log(f"连续报错 {MAX_CONSECUTIVE_ERRORS} 次，停止任务", "ERROR")
+                log(f"连续异常 {MAX_CONSECUTIVE_ERRORS} 次，判定 IP 环境失效", "ERROR")
                 break
             
-            # 极速版建议延迟 0.4-0.8s
             time.sleep(random.uniform(6, 8))
 
         browser.close()
-        log("扫描流程结束", "INFO")
+        log(f"任务结束。总计扫描: {stats['total_scanned']} | 最终命中: {stats['hit']}", "INFO")
 
 if __name__ == "__main__":
     run_task()
