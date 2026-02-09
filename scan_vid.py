@@ -101,9 +101,18 @@ def run_task():
                 try:
                     log(f"正在扫描店铺: {vid} (尝试 {attempt+1}/{MAX_RETRIES})")
                     
-                    # 降低等待强度，只要 DOM 加载了就进去
-                    page.goto(f"https://shop.m.jd.com/shop/home?venderId={vid}", 
-                             wait_until="domcontentloaded", timeout=20000)
+                    // 3. 极速拦截逻辑：禁止加载图片、CSS，仅允许 Fetch 和 Document
+                    await page.route('**/*', (route) => {
+                        const type = route.request().resourceType();
+                        if (['image', 'stylesheet', 'font', 'media'].includes(type)) {
+                            return route.abort();
+                        }
+                        route.continue();
+                    });
+            
+                    // 4. 伪造 Origin 占坑 (秒开，不走真实网络请求)
+                    await page.route('**/empty.html', r => r.fulfill({ status: 200, body: '<html></html>' }));
+                    await page.goto('https://www.jd.com/empty.html', { waitUntil: 'commit', timeout: 5000 }).catch(() => { });
                     
                     # ⚠️ 关键补丁：强制休眠 3 秒，避开页面初始跳转的高发期
                     time.sleep(3)
