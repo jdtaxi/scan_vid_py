@@ -23,7 +23,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install playwright playwright-stealth
+          pip install playwright playwright-stealth requests
           # 安装 Chromium 浏览器及其依赖
           playwright install chromium
           playwright install-deps chromium
