@@ -20,7 +20,7 @@ TARGET_PATTERN = os.environ.get("TARGET_PATTERN", "2PAAf74aG3D61qvfKUM5dxUssJQ9"
 WORKER_VID_URL = os.environ.get("WORKER_VID_URL", "https://vid.zshyz.us.ci")
 WORKER_TOKEN_URL = os.environ.get("WORKER_TOKEN_URL", "https://token.zshyz.us.ci")
 RUN_DURATION_MINUTES = int(os.environ.get("RUN_DURATION_MINUTES", 10))
-MAX_CONSECUTIVE_ERRORS = 3
+MAX_CONSECUTIVE_ERRORS = 10
 COPIES = int(os.environ.get("COPIES", 23))
 NUM_PARTS = int(os.environ.get("NUM_PARTS", 10))
 # =========================================
@@ -160,6 +160,8 @@ def run_task():
                     consecutive_errors += 1
                     stats["error"] += 1
                     log(f"{stats['total_scanned']}->页面崩溃 ({consecutive_errors}/{MAX_CONSECUTIVE_ERRORS}): {e}", "WARN")
+                    if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
+                        break
                     cooldown_sleep(consecutive_errors)
 
                 finally:
