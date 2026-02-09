@@ -104,9 +104,41 @@ def run_task():
                 page = context.new_page()
                 stealth_sync(page)
                 page.add_init_script("""
-                    Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-                    window.chrome = { runtime: {} };
-                    Object.defineProperty(navigator, 'languages', {get: () => ['zh-CN', 'zh']});
+                    (() => {
+                        // 1. 深度隐藏 WebDriver
+                        Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+                        
+                        // 2. 模拟真实的 Chrome 环境（针对移动端可进一步伪造）
+                        window.chrome = { runtime: {}, loadTimes: function() {}, csi: function() {}, app: {} };
+                        
+                        // 3. 语言与插件伪造
+                        Object.defineProperty(navigator, 'languages', {get: () => ['zh-CN', 'zh', 'en']});
+                        Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]}); // 避免为空
+                
+                        // 4. 优化 Canvas 混淆：注入微小噪点而非直接破坏
+                        // 直接返回“随机乱码”会导致图片格式损坏，被风控识别为非法篡改
+                        const originalCanvasToDataURL = HTMLCanvasElement.prototype.toDataURL;
+                        HTMLCanvasElement.prototype.toDataURL = function(type) {
+                            if (type === 'image/png') {
+                                const ctx = this.getContext('2d');
+                                if (ctx) {
+                                    // 在坐标 (1, 1) 绘制一个肉眼不可见但能改变特征值的像素
+                                    ctx.fillStyle = 'rgba(255, 255, 255, 0.01)';
+                                    ctx.fillRect(1, 1, 1, 1);
+                                }
+                            }
+                            return originalCanvasToDataURL.apply(this, arguments);
+                        };
+                
+                        // 5. 补充：WebGL 渲染器伪造（非常重要）
+                        const getParameter = WebGLRenderingContext.prototype.getParameter;
+                        WebGLRenderingContext.prototype.getParameter = function(parameter) {
+                            // 伪装显卡信息为常见移动端/桌面端硬件
+                            if (parameter === 37445) return 'Apple Inc.'; 
+                            if (parameter === 37446) return 'Apple GPU';
+                            return getParameter.apply(this, arguments);
+                        };
+                    })();
                 """)
 
                 try:
@@ -118,6 +150,11 @@ def run_task():
                         wait_until="domcontentloaded",
                         timeout=20000
                     )
+                    page.mouse.move(random.randint(0, 100), random.randint(0, 100))
+                    # 模拟向下滚动一屏再向上滚动一点
+                    page.mouse.wheel(0, random.randint(500, 800))
+                    time.sleep(1)
+                    page.mouse.wheel(0, -200)
 
                     time.sleep(random.uniform(1, 3))
 
