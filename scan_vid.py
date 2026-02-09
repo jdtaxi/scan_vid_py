@@ -89,39 +89,27 @@ def run_task():
                 break
 
             success_fetched = False
+            # 内部重试循环
             for attempt in range(MAX_RETRIES):
                 page = context.new_page()
                 stealth_sync(page)
-                page.add_init_script("""
-                    Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-                    window.chrome = { runtime: {} };
-                    Object.defineProperty(navigator, 'languages', {get: () => ['zh-CN', 'zh']});
-                """)
+                # 注入
+                page.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
 
                 try:
                     log(f"正在扫描店铺: {vid} (尝试 {attempt+1}/{MAX_RETRIES})")
                     
-                    // 3. 极速拦截逻辑：禁止加载图片、CSS，仅允许 Fetch 和 Document
-                    await page.route('**/*', (route) => {
-                        const type = route.request().resourceType();
-                        if (['image', 'stylesheet', 'font', 'media'].includes(type)) {
-                            return route.abort();
-                        }
-                        route.continue();
-                    });
-            
-                    // 4. 伪造 Origin 占坑 (秒开，不走真实网络请求)
-                    await page.route('**/empty.html', r => r.fulfill({ status: 200, body: '<html></html>' }));
-                    await page.goto('https://www.jd.com/empty.html', { waitUntil: 'commit', timeout: 5000 }).catch(() => { });
+                    # 使用 networkidle 等待，虽然慢点但稳
+                    page.goto(f"https://shop.m.jd.com/shop/home?venderId={vid}", 
+                             wait_until="networkidle", timeout=20000)
                     
-                    # ⚠️ 关键补丁：强制休眠 3 秒，避开页面初始跳转的高发期
-                    time.sleep(3)
+                    # 额外给 2 秒让 H5 的自跳转逻辑跑完
+                    time.sleep(2)
 
-                    # 实时 URL 检查
-                    curr_url = page.url
-                    if "captcha" in curr_url or "login" in curr_url:
-                        log(f"店铺 {vid} 已被重定向至验证页: {curr_url[:40]}...", "WARN")
-                        break # 既然跳了，重试也没用，跳过该店
+                    if "captcha" in page.url or "login" in page.url:
+                        log(f"店铺 {vid} 触发环境校验，跳过", "WARN")
+                        # 注意：这里不增加 consecutive_errors，因为这是环境问题不是代码失效
+                        break 
 
                     fetch_script = f"""
                     async () => {{
@@ -132,45 +120,44 @@ def run_task():
                                 "body": "functionId=whx_getShopHomeActivityInfo&body=%7B%22venderId%22%3A%22{vid}%22%2C%22source%22%3A%22m-shop%22%7D&appid=shop_m_jd_com&clientVersion=11.0.0&client=wh5"
                             }});
                             return await res.json();
-                        }} catch (e) {{
-                            return {{ code: "-1", msg: e.toString() }};
-                        }}
+                        }} catch (e) {{ return {{ code: "-1", msg: e.toString() }}; }}
                     }}
                     """
-                    # 执行评估，捕获潜在的跳转异常
                     res_json = page.evaluate(fetch_script)
-                    
                     code = res_json.get("code", "unknown")
+
                     if code == "0":
-                        consecutive_errors = 0
+                        consecutive_errors = 0 # 只有 code 0 才重置
+                        success_fetched = True
                         isv_url = res_json.get("result", {}).get("signStatus", {}).get("isvUrl", "")
                         if TARGET_PATTERN in isv_url:
                             token = re.search(r'token=([^&]+)', isv_url).group(1) if "token=" in isv_url else "N/A"
-                            log(f"🎯 命中店铺 {vid} | Code: {code} | Token: {token}", "SUCCESS")
+                            log(f"🎯 命中店铺 {vid} | Token: {token}", "SUCCESS")
                             cf_token.upload({"vid": vid, "token": token, "type": "hit"})
                         else:
                             log(f"店铺 {vid} | Code: {code} | 正常无活动", "INFO")
-                        success_fetched = True
-                        break 
+                        break # 成功了，退出 attempt 循环
                     else:
-                        log(f"店铺 {vid} | Code: {code} | 接口拦截", "WARN")
-                
+                        # 只有接口明确返回非0，才认为是该 IP 被风控了，增加计数
+                        consecutive_errors += 1
+                        log(f"店铺 {vid} | Code: {code} | 接口响应异常 ({consecutive_errors}/{MAX_CONSECUTIVE_ERRORS})", "WARN")
+                        break
+
                 except Exception as e:
+                    # 页面跳转/上下文销毁等异常，不增加 consecutive_errors
                     if "destroyed" in str(e).lower() or "navigation" in str(e).lower():
-                        log(f"⚠️ 页面跳转导致上下文失效，跳过该店铺", "WARN")
-                        break # 不重试了，避免卡死
+                        log(f"⚠️ 页面跳转干扰，跳过 {vid}", "WARN")
+                        break 
                     else:
                         log(f"❌ 运行错误: {str(e)[:50]}", "ERROR")
                 finally:
                     page.close()
 
-            if not success_fetched:
-                consecutive_errors += 1
-                if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
-                    log(f"连续错误已达上限 {MAX_CONSECUTIVE_ERRORS}，停止", "ERROR")
-                    break
+            if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
+                log(f"🚨 连续接口异常达 {MAX_CONSECUTIVE_ERRORS} 次，停止运行", "ERROR")
+                break
             
-            time.sleep(random.uniform(2, 5))
+            time.sleep(random.uniform(1, 3)) # 降低冷却，提高效率
 
         browser.close()
         log("任务结束", "INFO")
