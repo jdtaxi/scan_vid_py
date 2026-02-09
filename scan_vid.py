@@ -14,7 +14,7 @@ TARGET_PATTERN = os.environ.get("TARGET_PATTERN", "2PAAf74aG3D61qvfKUM5dxUssJQ9"
 WORKER_VID_URL = os.environ.get("WORKER_VID_URL", "https://vid.zshyz.us.ci")
 WORKER_TOKEN_URL = os.environ.get("WORKER_TOKEN_URL", "https://token.zshyz.us.ci")
 RUN_DURATION_MINUTES = int(os.environ.get("RUN_DURATION_MINUTES", 10))
-MAX_CONSECUTIVE_ERRORS = int(os.environ.get("MAX_CONSECUTIVE_ERRORS", 20))
+MAX_CONSECUTIVE_ERRORS = int(os.environ.get("MAX_CONSECUTIVE_ERRORS", 30))
 NUM_PARTS = int(os.environ.get("NUM_PARTS", 10))
 COPIES = int(os.environ.get("COPIES", 24))
 # =========================================
@@ -52,14 +52,18 @@ def run_task():
     consecutive_errors = 0 
     
     with sync_playwright() as p:
-        # 启动浏览器仅为了获取 context 的请求能力
+        # 仅使用 context 发起请求，不打开浏览器 Page
         browser = p.chromium.launch(headless=True)
+        # 修复 Auth Header，确保 401 认证问题解决
+        auth_header = f"Bearer {API_KEY}" if not API_KEY.startswith("Bearer ") else API_KEY
+        
         context = browser.new_context(
             user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
             extra_http_headers={
+                "Authorization": auth_header,
                 "Origin": "https://shop.m.jd.com",
-                "Accept": "application/json, text/plain, */*",
-                "Content-Type": "application/x-www-form-urlencoded"
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Accept": "application/json, text/plain, */*"
             }
         )
 
@@ -69,7 +73,7 @@ def run_task():
                 break
 
             try:
-                # 使用 context.request 直接模拟 POST 请求
+                # 直接发起 HTTP POST 请求，避开所有页面脚本干扰
                 # 
                 response = context.request.post(
                     "https://api.m.jd.com/client.action",
@@ -77,39 +81,42 @@ def run_task():
                     headers={
                         "Referer": f"https://shop.m.jd.com/shop/home?venderId={vid}"
                     },
-                    timeout=8000
+                    timeout=10000
                 )
                 
-                # 获取原始 JSON 文本并打印
-                raw_text = response.text()
-                log(f"店铺 {vid} 原始返回 -> {raw_text}", "RAW")
+                # 打印原始返回数据
+                raw_res = response.text()
+                log(f"VID: {vid} | 原始返回: {raw_res}", "RAW")
                 
-                res_json = json.loads(raw_text)
+                res_json = json.loads(raw_res)
                 code = str(res_json.get("code", "unknown"))
 
                 if code == "0":
                     stats["success"] += 1
                     consecutive_errors = 0
                     
-                    # 尝试解析 ISV 链接
                     isv_url = res_json.get("result", {}).get("signStatus", {}).get("isvUrl", "")
                     if TARGET_PATTERN in isv_url:
-                        token = re.search(r'token=([^&]+)', isv_url).group(1) if "token=" in isv_url else "N/A"
+                        token_match = re.search(r'token=([^&]+)', isv_url)
+                        token = token_match.group(1) if token_match else "N/A"
                         log(f"🎯 命中店铺 {vid} | Token: {token}", "SUCCESS")
                         stats["hit"] += 1
                         
-                        # 上传 Token
+                        # 同步数据库
                         up_res = db_token.upload({"vid": vid, "token": token, "type": "hit"})
-                        log(f"📡 同步结果: OK={up_res.get('ok')} | Http={up_res.get('code')}", "SYNC")
+                        # 重点显示上传反馈
+                        log(f"📡 同步结果: OK={up_res.get('ok')} | Http={up_res.get('code')} | Msg={up_res.get('body')}", "SYNC")
                 else:
                     if code == "3":
+                        log(f"⚠️ 店铺 {vid} 被拦截 (Code 3)", "WARN")
                         stats["blocked"] += 1
                     else:
+                        log(f"❌ 店铺 {vid} 接口异常 (Code {code})", "ERROR")
                         stats["error"] += 1
                     consecutive_errors += 1
 
             except Exception as e:
-                log(f"❌ 请求崩溃 {vid}: {str(e)[:50]}", "ERROR")
+                log(f"❌ 请求失败 {vid}: {str(e)[:100]}", "ERROR")
                 stats["error"] += 1
                 consecutive_errors += 1
 
@@ -119,14 +126,14 @@ def run_task():
                 log(f"📊 阶段汇总({stats['total_scanned']}): 成功:{stats['success']} | 命中:{stats['hit']} | 拦截(Code3):{stats['blocked']} | 异常:{stats['error']}", "STATS")
 
             if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
-                log(f"连续报错 {MAX_CONSECUTIVE_ERRORS} 次，判定环境受限", "ERROR")
+                log(f"连续报错 {MAX_CONSECUTIVE_ERRORS} 次，停止任务", "ERROR")
                 break
             
-            # 极速版不加载图片，0.5s-1s 延迟足以保护 IP
-            time.sleep(random.uniform(6, 8))
+            # 极速版建议延迟 0.4-0.8s
+            time.sleep(random.uniform(0.4, 0.8))
 
         browser.close()
-        log("所有 VID 处理结束", "INFO")
+        log("扫描流程结束", "INFO")
 
 if __name__ == "__main__":
     run_task()
