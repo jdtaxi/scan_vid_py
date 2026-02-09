@@ -14,12 +14,12 @@ TARGET_PATTERN = os.environ.get("TARGET_PATTERN", "2PAAf74aG3D61qvfKUM5dxUssJQ9"
 WORKER_VID_URL = os.environ.get("WORKER_VID_URL", "https://vid.zshyz.us.ci")
 WORKER_TOKEN_URL = os.environ.get("WORKER_TOKEN_URL", "https://token.zshyz.us.ci")
 RUN_DURATION_MINUTES = int(os.environ.get("RUN_DURATION_MINUTES", 10))
-MAX_CONSECUTIVE_ERRORS = int(os.environ.get("MAX_CONSECUTIVE_ERRORS", 20)) # 纯接口请求可以容忍更多错误
+MAX_CONSECUTIVE_ERRORS = int(os.environ.get("MAX_CONSECUTIVE_ERRORS", 20))
 NUM_PARTS = int(os.environ.get("NUM_PARTS", 10))
 COPIES = int(os.environ.get("COPIES", 24))
 # =========================================
 
-stats = {"success": 0, "hit": 0, "error": 0, "total_scanned": 0}
+stats = {"success": 0, "hit": 0, "blocked": 0, "error": 0, "total_scanned": 0}
 
 def log(msg, level="INFO"):
     timestamp = time.strftime("%H:%M:%S", time.localtime())
@@ -52,29 +52,28 @@ def run_task():
     consecutive_errors = 0 
     
     with sync_playwright() as p:
-        # 极速启动模式
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(
             user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
         )
         page = context.new_page()
 
-        # 1. 资源拦截逻辑：禁止加载图片、样式表等，只允许 fetch
+        # 资源拦截逻辑：极致省流
         page.route("**/*", lambda route: 
             route.abort() if route.request.resource_type in ["image", "stylesheet", "font", "media"] 
             else route.continue_()
         )
 
-        # 2. 伪造空白页占坑 (秒开)
+        # 伪造空白页占坑
         page.route("**/empty.html", lambda route: 
             route.fulfill(status=200, body="<html><body></body></html>")
         )
         
         try:
-            log("正在初始化空白环境...", "INFO")
+            log("初始化极速扫描环境...", "INFO")
             page.goto("https://shop.m.jd.com/empty.html", wait_until="commit", timeout=10000)
         except Exception as e:
-            log(f"初始化环境失败: {e}", "ERROR")
+            log(f"环境初始化失败: {e}", "ERROR")
             return
 
         for vid in vender_ids:
@@ -83,7 +82,7 @@ def run_task():
                 break
 
             try:
-                # 3. 直接在当前空白页发起 Fetch，不进行页面跳转
+                # 核心 Fetch 逻辑
                 fetch_script = f"""
                 async () => {{
                     try {{
@@ -99,8 +98,9 @@ def run_task():
                 }}
                 """
                 res_json = page.evaluate(fetch_script)
-                code = res_json.get("code", "unknown")
+                code = str(res_json.get("code", "unknown"))
 
+                # 打印每一个 VID 的返回码
                 if code == "0":
                     stats["success"] += 1
                     consecutive_errors = 0
@@ -108,37 +108,43 @@ def run_task():
                     
                     if TARGET_PATTERN in isv_url:
                         token = re.search(r'token=([^&]+)', isv_url).group(1) if "token=" in isv_url else "N/A"
-                        log(f"🎯 命中 {vid} | Token: {token[:10]}...", "SUCCESS")
+                        log(f"🎯 命中 {vid} | Code: {code} | Token: {token[:8]}...", "SUCCESS")
                         stats["hit"] += 1
                         
-                        # 同步数据库
+                        # 同步数据库并打印响应
                         up_res = db_token.upload({"vid": vid, "token": token, "type": "hit"})
-                        log(f"📡 同步: OK={up_res.get('ok')} | Http={up_res.get('code')}", "SYNC")
+                        log(f"📡 同步结果: OK={up_res.get('ok')} | Http={up_res.get('code')} | Msg={up_res.get('body')[:30]}", "SYNC")
+                    else:
+                        # 只有在扫描间隔较长时建议开启此行打印，否则日志会非常多
+                        # log(f"店铺 {vid} | Code: {code} | 正常无活动", "INFO")
+                        pass
                 else:
-                    stats["error"] += 1
-                    consecutive_errors += 1
-                    # 如果 code 是 3，通常代表 IP 被暂时风控
                     if code == "3":
-                        log(f"店铺 {vid} 被拦截 (Code 3)", "WARN")
+                        stats["blocked"] += 1
+                        log(f"⚠️ 店铺 {vid} | Code: {code} (IP被拦截)", "WARN")
+                    else:
+                        stats["error"] += 1
+                        log(f"❌ 店铺 {vid} | Code: {code} (其他异常)", "ERROR")
+                    consecutive_errors += 1
 
             except Exception as e:
-                log(f"评估失败 {vid}: {str(e)[:50]}", "ERROR")
+                log(f"评测异常 {vid}: {str(e)[:50]}", "ERROR")
                 consecutive_errors += 1
 
             # 统计汇总
             stats["total_scanned"] += 1
             if stats["total_scanned"] % 10 == 0:
-                log(f"阶段汇总({stats['total_scanned']}): 成功:{stats['success']} | 命中:{stats['hit']} | 异常:{stats['error']}", "STATS")
+                log(f"📊 阶段汇总({stats['total_scanned']}): 成功:{stats['success']} | 命中:{stats['hit']} | 拦截(Code3):{stats['blocked']} | 异常:{stats['error']}", "STATS")
 
             if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
                 log(f"连续报错 {MAX_CONSECUTIVE_ERRORS} 次，判定 IP 暂时失效", "ERROR")
                 break
             
-            # 由于不加载页面，请求速度非常快，建议稍微加一点点随机延迟保护 IP
-            time.sleep(random.uniform(8, 10))
+            # 极速模式下建议保留 0.5s 左右的间隔
+            time.sleep(random.uniform(0.4, 0.8))
 
         browser.close()
-        log("扫描任务结束", "INFO")
+        log(f"任务结束。总计扫描: {stats['total_scanned']} | 命中总数: {stats['hit']}", "INFO")
 
 if __name__ == "__main__":
     run_task()
