@@ -7,6 +7,9 @@ import math
 import sys
 from playwright.sync_api import sync_playwright
 from cf_db import CF_vid,CF_TOKEN
+from datetime import datetime, timedelta, timezone
+
+
 # 尝试导入混淆库
 try:
     from playwright_stealth import stealth_sync
@@ -65,10 +68,18 @@ def getdata(my_array):
 def run_task():
     vender_ids = [];
     copies = 23;
-    #获取北京时间小时数
-    #Cloudflare Worker 的 Date.now() 是 UTC 时间，+8 小时得到北京时间
-    const bjTime = new Date(Date.now() + 8 * 60 * 60 * 1000);
-    const copy = bjTime.getUTCHours(); // 获取 0-23 之间的小时数
+    # 1. 获取当前 UTC 时间
+    utc_now = datetime.now(timezone.utc)
+    
+    # 2. 定义北京时间时区 (UTC+8)
+    beijing_tz = timezone(timedelta(hours=8))
+    
+    # 3. 转换并获取小时数
+    bj_time = utc_now.astimezone(beijing_tz)
+    copy = bj_time.hour
+    
+    print(f"北京时间当前小时数: {copy}")
+    
     # 初始化
     cf_vid = CF_VID("https://vid.zshyz.us.ci", "leaflow")
     
