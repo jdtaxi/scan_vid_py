@@ -1,203 +1,119 @@
-import os
-import json
-import time
-import re
-import random
-import math
-import sys
+import os, time, re, random
 from playwright.sync_api import sync_playwright
-from cf_db import CF_VID,CF_TOKEN
+from cf_db import CF_VID
 from datetime import datetime, timedelta, timezone
 
-
-# 尝试导入混淆库
+# 尝试导入 Stealth
 try:
     from playwright_stealth import stealth_sync
 except ImportError:
     def stealth_sync(page): pass
 
 # ================= 配置区 =================
+WORKER_URL = "https://vid.zshyz.us.ci"
+API_KEY = "leaflow"
 TARGET_PATTERN = "2PAAf74aG3D61qvfKUM5dxUssJQ9"
-RUN_DURATION_MINUTES = 10     
-MAX_CONSECUTIVE_ERRORS = 10    # 连续报错停止阈值
+RUN_DURATION_MINUTES = 10
+MAX_CONSECUTIVE_ERRORS = 10
 # =========================================
 
 def log(msg, level="INFO"):
-    timestamp = time.strftime("%H:%M:%S", time.localtime())
-    icons = {"INFO": "ℹ️", "SUCCESS": "✅", "ERROR": "❌", "WARN": "⚠️", "TIMER": "⏱️"}
-    print(f"[{timestamp}] {icons.get(level, '•')} {msg}", flush=True)
+    ts = time.strftime("%H:%M:%S")
+    icon = {"INFO":"ℹ️","SUCCESS":"✅","ERROR":"❌","WARN":"⚠️","TIMER":"⏱️"}.get(level, "•")
+    print(f"[{ts}] {icon} {msg}", flush=True)
 
-def getdata(my_array):
-    # 1. 获取当前脚本文件名（不含扩展名）
+def split_and_get_my_part(data_list):
+    """根据脚本文件名末尾数字获取自己的那一份数据 (10分法)"""
     file_name = os.path.splitext(os.path.basename(__file__))[0]
-    
-    # 2. 提取最后两位数字并转为整数
-    # 假设文件名是 'script_05.py'，则 index 为 5
     try:
-        index = int(file_name[-2:])
-    except ValueError:
-        raise ValueError("文件名末尾必须是两位数字，例如：data_process_02.py")
+        # 获取文件名末尾两位数字
+        script_idx = int(re.search(r'(\d{2})$', file_name).group(1))
+    except:
+        log("文件名须以两位数字结尾 (如 script_01.py)，默认使用索引 0", "WARN")
+        script_idx = 0
     
-    # 3. 准备你的数据数组
+    # 将小时数据切成 10 份给 10 个脚本并行
+    num_parts = 10
+    avg = len(data_list) / num_parts
+    parts = [data_list[int(i * avg): int((i + 1) * avg)] for i in range(num_parts)]
     
-    
-    # 4. 将数组分成10份
-    def split_array(data, num_parts):
-        avg = len(data) / float(num_parts)
-        out = []
-        last = 0.0
-    
-        while last < len(data):
-            out.append(data[int(last):int(last + avg)])
-            last += avg
-    
-        return out
-    
-    parts = split_array(my_array, 10)
-    
-    # 5. 根据索引获取对应的部分
-    # 注意：如果 index 是从 1 开始的（01-10），需要减 1
-    current_part = parts[index] 
-    
-    print(f"当前脚本索引: {index}")
-    print(f"获取到的数据片段长度: {len(current_part)}")
-    print(f"片段内容: {current_part}")
-    return current_part
-
+    # 安全取值：如果是 01-10 对应 0-9 索引
+    idx = (script_idx - 1) if script_idx > 0 else 0
+    return parts[idx] if idx < len(parts) else []
 
 def run_task():
-    vender_ids = [];
-    copies = 23;
-    # 1. 获取当前 UTC 时间
-    utc_now = datetime.now(timezone.utc)
+    # 1. 初始化数据库并获取当前小时分片 (24分法)
+    cf = CF_VID(WORKER_URL, API_KEY)
+    bj_now = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=8)))
+    current_hour = bj_now.hour
     
-    # 2. 定义北京时间时区 (UTC+8)
-    beijing_tz = timezone(timedelta(hours=8))
+    log(f"正在获取北京时间 {current_hour} 点的数据分片...", "INFO")
+    db_res = cf.get_data_slice(copy=current_hour, copies=24)
+    hour_data = db_res.get("data", [])
     
-    # 3. 转换并获取小时数
-    bj_time = utc_now.astimezone(beijing_tz)
-    copy = bj_time.hour
-    
-    print(f"北京时间当前小时数: {copy}")
-    
-    # 初始化
-    cf_vid = CF_VID("https://vid.zshyz.us.ci", "leaflow")
-    
-    result = cf_vid.get_data_slice(copy=copy, copies=copies)
-        
-    data = result.get("data", [])
-    print(f"正在处理第 {copy+1} 份数据，获取到 {len(data)} 条")
-    vender_ids=getdata(my_array)
-        
+    # 2. 二级切分给并行脚本
+    vender_ids = split_and_get_my_part(hour_data)
+    log(f"本脚本分配到 {len(vender_ids)} 条任务", "INFO")
 
-    script_start_time = time.time()
-    consecutive_errors = 0 # 连续错误计数器
-    
+    if not vender_ids: return
+
+    start_time = time.time()
+    errors = 0
+
     with sync_playwright() as p:
-        # 优化 1：启动参数优化，禁用自动化控制特征
-        browser = p.chromium.launch(
-            headless=True,
-            args=[
-                "--disable-blink-features=AutomationControlled",
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-infobars",
-                "--window-position=0,0",
-                "--ignore-certificate-errors",
-            ]
-        )
-        
-        # 优化 2：深度伪造浏览器上下文
-        # 模拟 iPhone 13 Pro 的典型硬件指纹
+        browser = p.chromium.launch(headless=True, args=["--disable-blink-features=AutomationControlled"])
         context = browser.new_context(
             user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
             viewport={'width': 390, 'height': 844},
-            device_scale_factor=3,
-            is_mobile=True,
-            has_touch=True,
-            locale="zh-CN",
-            timezone_id="Asia/Shanghai"
+            is_mobile=True
         )
 
-        log("任务启动：已加载深度 Stealth 优化配置", "INFO")
+        for vid in vender_ids:
+            if (time.time() - start_time) / 60 >= RUN_DURATION_MINUTES:
+                log("时长达到上限，退出", "TIMER")
+                break
+            
+            page = context.new_page()
+            stealth_sync(page)
+            
+            try:
+                log(f"扫描店铺: {vid}")
+                page.goto(f"https://shop.m.jd.com/shop/home?venderId={vid}", wait_until="domcontentloaded", timeout=20000)
+                time.sleep(random.uniform(1.5, 3))
 
-        try:
-            for vid in vender_ids:
-                if (time.time() - script_start_time) / 60 >= RUN_DURATION_MINUTES:
-                    log("达到时长上限，停止", "TIMER")
-                    break
-
-                page = context.new_page()
-                
-                # 优化 3：Stealth 注入优化
-                stealth_sync(page)
-                
-                # 优化 4：额外注入 JavaScript 屏蔽 Webdriver 检测
-                page.add_init_script("""
-                    Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-                    window.chrome = { runtime: {} };
-                    Object.defineProperty(navigator, 'languages', {get: () => ['zh-CN', 'zh']});
+                # 执行接口检查
+                res_json = page.evaluate("""
+                    async () => {
+                        const res = await fetch("https://api.m.jd.com/client.action", {
+                            "method": "POST",
+                            "headers": { "content-type": "application/x-www-form-urlencoded" },
+                            "body": "functionId=whx_getShopHomeActivityInfo&body=%7B%22venderId%22%3A%22""" + str(vid) + """%22%2C%22source%22%3A%22m-shop%22%7D&appid=shop_m_jd_com&clientVersion=11.0.0&client=wh5"
+                        });
+                        return await res.json();
+                    }
                 """)
 
-                try:
-                    log(f"正在扫描店铺: {vid}", "INFO")
-                    # 降低加载压力
-                    page.goto(f"https://shop.m.jd.com/shop/home?venderId={vid}", 
-                              wait_until="domcontentloaded", # 只要 DOM 好了就执行，减少被 WAF 捕捉的时间
-                              timeout=20000)
-                    
-                    # 模拟随机人类行为：停留 1-3 秒
-                    time.sleep(random.uniform(1, 3))
-
-                    fetch_script = f"""
-                    async () => {{
-                        try {{
-                            const res = await fetch("https://api.m.jd.com/client.action", {{
-                                "method": "POST",
-                                "headers": {{ "content-type": "application/x-www-form-urlencoded" }},
-                                "body": "functionId=whx_getShopHomeActivityInfo&body=%7B%22venderId%22%3A%22{vid}%22%2C%22source%22%3A%22m-shop%22%7D&appid=shop_m_jd_com&clientVersion=11.0.0&client=wh5"
-                            }});
-                            return await res.json();
-                        }} catch (e) {{
-                            return {{ code: "-1", msg: e.toString() }};
-                        }}
-                    }}
-                    """
-                    res_json = page.evaluate(fetch_script)
-
-                    if res_json and res_json.get("code") == "0":
-                        # 成功响应，重置连续错误计数
-                        consecutive_errors = 0
-                        isv_url = res_json.get("result", {}).get("signStatus", {}).get("isvUrl", "")
-                        if TARGET_PATTERN in isv_url:
-                            token = re.search(r'token=([^&]+)', isv_url).group(1) if "token=" in isv_url else "N/A"
-                            log(f"🎯 命中店铺 {vid} | Token: {token}", "SUCCESS")
-                        else:
-                            log(f"店铺 {vid} 正常无活动", "INFO")
-                    else:
-                        # 触发风控或接口错误
-                        consecutive_errors += 1
-                        error_msg = res_json.get('msg', '风控拦截')
-                        log(f"店铺 {vid} 异常 ({consecutive_errors}/{MAX_CONSECUTIVE_ERRORS}): {error_msg}", "WARN")
-                        
-                        if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
-                            log("连续报错 10 次，判断当前 IP 已被京东封锁，程序自毁中...", "ERROR")
-                            break
-
-                except Exception as e:
-                    consecutive_errors += 1
-                    log(f"页面崩溃 ({consecutive_errors}/{MAX_CONSECUTIVE_ERRORS}): {e}", "WARN")
-                    if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
-                        break
-                finally:
-                    page.close()
+                if res_json and res_json.get("code") == "0":
+                    errors = 0
+                    isv_url = res_json.get("result", {}).get("signStatus", {}).get("isvUrl", "")
+                    if TARGET_PATTERN in isv_url:
+                        log(f"🎯 命中店铺 {vid}", "SUCCESS")
+                else:
+                    errors += 1
+                    log(f"异常 ({errors}/{MAX_CONSECUTIVE_ERRORS})", "WARN")
                 
-                # 随机冷却，保护 IP
-                time.sleep(random.uniform(3, 7))
+                if errors >= MAX_CONSECUTIVE_ERRORS:
+                    log("连续异常过多，IP 可能被封", "ERROR")
+                    break
 
-        finally:
-            browser.close()
-            log("任务结束，清理完成", "INFO")
+            except Exception as e:
+                log(f"错误: {e}", "WARN")
+            finally:
+                page.close()
+            
+            time.sleep(random.uniform(2, 4))
+
+        browser.close()
 
 if __name__ == "__main__":
     run_task()
