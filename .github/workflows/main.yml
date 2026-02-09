@@ -42,5 +42,5 @@ jobs:
           COPIES: ${{ vars.COPIES }}
         # 根据矩阵索引重命名并运行，确保切片逻辑正确
         run: |
-          cp scan_vid.py scan_vid_${{ matrix.index }}.py
-          python -u scan_vid_${{ matrix.index }}.py
+          cp scan_vid_b.py scan_vid_b_${{ matrix.index }}.py
+          python -u scan_vid_b_${{ matrix.index }}.py
