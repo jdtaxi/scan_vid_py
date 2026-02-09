@@ -25,7 +25,7 @@ COPIES = int(os.environ.get("COPIES", 23))
 NUM_PARTS = int(os.environ.get("NUM_PARTS", 10))
 # =========================================
 
-stats = {"success": 0, "hit": 0, "blocked": 0, "error": 0, "total_scanned": 0}
+stats = {"success": 0, "hit": 0, "blocked": 0, "error": 0, 'total_scanned': 0}
 
 def log(msg, level="INFO"):
     timestamp = time.strftime("%H:%M:%S", time.localtime())
@@ -138,19 +138,19 @@ def run_task():
 
                     if res_json and res_json.get("code") == "0":
                         stats["success"] += 1
-                        stats["total_scanned"] += 1
+                        stats['total_scanned'] += 1
                         consecutive_errors = 0
                         isv_url = res_json.get("result", {}).get("signStatus", {}).get("isvUrl", "")
                         if TARGET_PATTERN in isv_url:
                             token = re.search(r'token=([^&]+)', isv_url).group(1) if "token=" in isv_url else "N/A"
-                            log(f"{stats["total_scanned"]}->🎯 命中店铺 {vid} | Token: {token}", "SUCCESS")
+                            log(f"{stats['total_scanned']}->🎯 命中店铺 {vid} | Token: {token}", "SUCCESS")
                             up_res = db_token.upload({"vid": vid, "token": token})
                             log(f"📡 同步结果: OK={up_res.get('ok')} | Http={up_res.get('code')} | Msg={up_res.get('body')}", "SYNC")
                         else:
-                            log(f"{stats["total_scanned"]}->店铺 {vid} 正常无活动", "INFO")
+                            log(f"{stats['total_scanned']}->店铺 {vid} 正常无活动", "INFO")
                     else:
                         stats["error"] += 1
-                        stats["total_scanned"] += 1
+                        stats['total_scanned'] += 1
                         consecutive_errors += 1
                         log(f"店铺 {vid} 异常 ({consecutive_errors}/{MAX_CONSECUTIVE_ERRORS})", "WARN")
                         cooldown_sleep(consecutive_errors)
@@ -158,7 +158,7 @@ def run_task():
                 except Exception as e:
                     consecutive_errors += 1
                     stats["error"] += 1
-                    log(f"{stats["total_scanned"]}->页面崩溃 ({consecutive_errors}/{MAX_CONSECUTIVE_ERRORS}): {e}", "WARN")
+                    log(f"{stats['total_scanned']}->页面崩溃 ({consecutive_errors}/{MAX_CONSECUTIVE_ERRORS}): {e}", "WARN")
                     cooldown_sleep(consecutive_errors)
 
                 finally:
