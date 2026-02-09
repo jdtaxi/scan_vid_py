@@ -27,11 +27,11 @@ COPIES = int(os.environ.get("COPIES", 24))
 # =========================================
 
 stats = {"success": 0, "jump": 0, "hit": 0, "error": 0, "total_scanned": 0}
-last_nav_url = "unknown" # 用于追踪最后一次跳转地址
+last_nav_url = "unknown"
 
 def log(msg, level="INFO"):
     timestamp = time.strftime("%H:%M:%S", time.localtime())
-    icons = {"INFO": "ℹ️", "SUCCESS": "✅", "ERROR": "❌", "WARN": "⚠️", "STATS": "📊"}
+    icons = {"INFO": "ℹ️", "SUCCESS": "✅", "ERROR": "❌", "WARN": "⚠️", "STATS": "📊", "SYNC": "📡"}
     print(f"[{timestamp}] {icons.get(level, '•')} {msg}", flush=True)
 
 def split_and_get_my_part(data_list):
@@ -48,10 +48,9 @@ def run_task():
     db_token = CF_TOKEN(WORKER_TOKEN_URL, API_KEY)
 
     bj_now = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=8)))
-    current_hour = bj_now.hour
-    log(f"⏰ 北京时间: {bj_now.strftime('%Y-%m-%d %H:%M:%S')} | 分片: {current_hour}")
+    log(f"⏰ 北京时间: {bj_now.strftime('%Y-%m-%d %H:%M:%S')} | 分片: {bj_now.hour}")
     
-    result = db_vid.get_data_slice(copy=current_hour, copies=COPIES)
+    result = db_vid.get_data_slice(copy=bj_now.hour, copies=COPIES)
     vender_ids = split_and_get_my_part(result.get("data", []))
     log(f"任务分配: 本脚本执行 {len(vender_ids)} 条", "INFO")
 
@@ -61,8 +60,16 @@ def run_task():
     consecutive_errors = 0 
     
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True, args=["--disable-blink-features=AutomationControlled","--no-sandbox","--ignore-certificate-errors"])
-        context = browser.new_context(user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1")
+        browser = p.chromium.launch(headless=True, args=[
+            "--disable-blink-features=AutomationControlled",
+            "--no-sandbox",
+            "--ignore-certificate-errors",
+            "--disable-dev-shm-usage"
+        ])
+        context = browser.new_context(
+            user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
+            viewport={'width': 390, 'height': 844}
+        )
 
         for vid in vender_ids:
             if (time.time() - script_start_time) / 60 >= RUN_DURATION_MINUTES:
@@ -74,16 +81,25 @@ def run_task():
                 page = context.new_page()
                 stealth_sync(page)
                 
-                # 实时追踪跳转地址
+                # 监听页面跳转事件
                 def handle_nav(frame):
                     global last_nav_url
                     last_nav_url = frame.url
                 page.on("framenavigated", handle_nav)
 
                 try:
-                    # 步骤简化：直接跳转
-                    page.goto(f"https://shop.m.jd.com/shop/home?venderId={vid}", wait_until="domcontentloaded", timeout=15000)
-                    time.sleep(3) # 等待跳转稳定
+                    # 提前注入混淆和拦截脚本
+                    page.add_init_script("""
+                        Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+                        window.location.reload = () => { console.log('Prevented Reload'); };
+                    """)
+
+                    # 改用 commit 模式，只要服务器头返回就注入
+                    page.goto(f"https://shop.m.jd.com/shop/home?venderId={vid}", 
+                             wait_until="commit", timeout=15000)
+                    
+                    # 给 4 秒让页面渲染和潜在的首次重定向跑完
+                    time.sleep(4)
 
                     fetch_script = f"""
                     async () => {{
@@ -103,11 +119,16 @@ def run_task():
                         consecutive_errors = 0
                         success_fetched = True
                         isv_url = res_json.get("result", {}).get("signStatus", {}).get("isvUrl", "")
+                        
                         if TARGET_PATTERN in isv_url:
                             token = re.search(r'token=([^&]+)', isv_url).group(1) if "token=" in isv_url else "N/A"
                             log(f"🎯 命中店铺 {vid} | Token: {token}", "SUCCESS")
                             stats["hit"] += 1
-                            db_token.upload({"vid": vid, "token": token, "type": "hit"})
+                            
+                            # --- 数据库同步日志 ---
+                            log(f"同步数据: VID={vid}, Token={token[:8]}...", "SYNC")
+                            up_res = db_token.upload({"vid": vid, "token": token, "type": "hit"})
+                            log(f"同步结果: OK={up_res.get('ok')} | HttpCode={up_res.get('code')} | Msg={up_res.get('body')[:50]}", "SYNC")
                         break 
                     else:
                         stats["error"] += 1
@@ -116,25 +137,33 @@ def run_task():
 
                 except Exception as e:
                     if "destroyed" in str(e).lower():
-                        log(f"⚠️ 店铺 {vid} 跳转干扰 -> 目标页: {last_nav_url}", "WARN")
+                        # 判断是原地刷新还是跳走了
+                        if str(vid) in last_nav_url:
+                            reason = "原地反复刷新"
+                        else:
+                            reason = f"跳至 {last_nav_url[:40]}..."
+                        log(f"⚠️ 店铺 {vid} {reason}", "WARN")
                         stats["jump"] += 1
                         break
+                    else:
+                        # 记录其他偶发性错误
+                        consecutive_errors += 1
                 finally:
                     page.close()
 
-            # 实时汇总逻辑：每 10 个打印一次
+            # 统计汇总
             stats["total_scanned"] += 1
             if stats["total_scanned"] % 10 == 0:
-                log(f"📊 阶段汇总({stats['total_scanned']}): [成功:{stats['success']}] [跳转:{stats['jump']}] [命中:{stats['hit']}] [异常:{stats['error']}]", "STATS")
+                log(f"阶段汇总({stats['total_scanned']}): 成功:{stats['success']} | 跳转:{stats['jump']} | 命中:{stats['hit']} | 错误:{stats['error']}", "STATS")
 
             if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
-                log(f"连续错误达 {MAX_CONSECUTIVE_ERRORS} 次，停止", "ERROR")
+                log(f"连续错误达 {MAX_CONSECUTIVE_ERRORS} 次，判定环境失效", "ERROR")
                 break
             
-            time.sleep(random.uniform(0.5, 1.5))
+            time.sleep(random.uniform(0.5, 1.2))
 
         browser.close()
-        log("任务结束", "INFO")
+        log("所有任务已处理完毕", "INFO")
 
 if __name__ == "__main__":
     run_task()
