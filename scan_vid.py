@@ -53,8 +53,6 @@ def run_task():
     
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        # 确保 Authorization 格式正确以修复之前的 401 错误
-        auth_header = f"Bearer {API_KEY}" if not API_KEY.startswith("Bearer ") else API_KEY
         
         context = browser.new_context(
             user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
@@ -76,7 +74,8 @@ def run_task():
                 response = context.request.post(
                     "https://api.m.jd.com/client.action",
                     data=f"functionId=whx_getShopHomeActivityInfo&body=%7B%22venderId%22%3A%22{vid}%22%2C%22source%22%3A%22m-shop%22%7D&appid=shop_m_jd_com&clientVersion=11.0.0&client=wh5",
-                    headers={"Referer": f"https://shop.m.jd.com/shop/home?venderId={vid}"},
+                    ##headers={"Referer": f"https://shop.m.jd.com/shop/home?venderId={vid}"},
+                    headers={"Referer": f"https://m.jd.com"},
                     timeout=12000 # 适当增加超时容错
                 )
                 
