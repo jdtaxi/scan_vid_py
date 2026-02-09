@@ -203,17 +203,17 @@ def run_task():
                     if TARGET_PATTERN in isv_url:
                         token = re.search(r"token=([^&]+)", isv_url).group(1)
                         stats["hit"] += 1
-                        log(f"🎯 命中店铺 {vid} | token={token}", "SUCCESS")
+                        log(f"{stats["total"]}->🎯 命中店铺 {vid} | token={token}", "SUCCESS")
                         db_token.upload({"vid": vid, "token": token})
                     else:
-                        log(f"店铺 {vid} 正常无活动")
+                        log(f"{stats["total"]}->店铺 {vid} 正常无活动")
                 else:
                     raise RuntimeError(data.get("msg", "接口异常"))
 
             except Exception as e:
                 stats["error"] += 1
                 error_streak += 1
-                log(f"店铺 {vid} 异常 ({error_streak}): {e}", "WARN")
+                log(f"{stats["total"]}->店铺 {vid} 异常 ({error_streak}): {e}", "WARN")
                 cooldown_sleep(error_streak)
 
             # Context 轮换
