@@ -27,7 +27,7 @@ class CF_TOKEN:
 
     def upload(self, data: dict):
         # 注意：这里请根据你 Worker 的逻辑改为 /add 或 /update
-        url = f"{self.base_url}/add" 
+        url = f"{self.base_url}/upload" 
         try:
             res = self.session.post(url, json=data, timeout=15)
             return {"code": res.status_code, "body": res.text, "ok": res.status_code == 200}
