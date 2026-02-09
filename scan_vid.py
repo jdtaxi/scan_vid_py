@@ -102,7 +102,7 @@ def run_task():
                 """)
 
                 try:
-                    log(f"正在扫描店铺: {vid}", "INFO")
+                    #log(f"正在扫描店铺: {vid}", "INFO")
                     # 降低加载压力
                     page.goto(f"https://shop.m.jd.com/shop/home?venderId={vid}", 
                               wait_until="domcontentloaded", # 只要 DOM 好了就执行，减少被 WAF 捕捉的时间
