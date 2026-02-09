@@ -15,6 +15,7 @@ class CF_VID:
             res.raise_for_status()
             return res.json()
         except Exception as e:
+            print(f"❌ 获取VID失败: {e}")
             return {"data": []}
 
 class CF_TOKEN:
@@ -25,11 +26,24 @@ class CF_TOKEN:
         self.session.headers.update({"Authorization": auth_val, "Content-Type": "application/json"})
 
     def upload(self, data: dict):
-        url = f"{self.base_url}/update" # 或者你的上传路径
+        """
+        上传 Token 到云端。
+        注意：请确保 Worker 端支持 /add 路径。如果你的路径是 /update，请修改此处。
+        """
+        url = f"{self.base_url}/add" 
         try:
-            # 包装成数组，因为 Worker 通常接受批量上传
-            res = self.session.post(url, json=[data], timeout=15)
-            return res.status_code == 200
+            # 增加详细日志，方便调试
+            res = self.session.post(url, json=data, timeout=15)
+            
+            # 返回详细结果字典，而不仅仅是布尔值
+            return {
+                "status": res.status_code,
+                "text": res.text,
+                "success": res.status_code == 200
+            }
         except Exception as e:
-            print(f"Token Upload Error: {e}")
-            return False
+            return {
+                "status": 500,
+                "text": str(e),
+                "success": False
+            }
