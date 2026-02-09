@@ -135,7 +135,7 @@ def run_task():
                 break
             
             # 由于不加载页面，请求速度非常快，建议稍微加一点点随机延迟保护 IP
-            time.sleep(random.uniform(0.3, 0.8))
+            time.sleep(random.uniform(8, 10))
 
         browser.close()
         log("扫描任务结束", "INFO")
