@@ -6,7 +6,7 @@ import random
 import math
 import sys
 from playwright.sync_api import sync_playwright
-from cf_db import CF_vid,CF_TOKEN
+from cf_db import CF_VID,CF_TOKEN
 from datetime import datetime, timedelta, timezone
 
 
