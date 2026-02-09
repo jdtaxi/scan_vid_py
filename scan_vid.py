@@ -26,12 +26,11 @@ NUM_PARTS = int(os.environ.get("NUM_PARTS", 10))
 COPIES = int(os.environ.get("COPIES", 24))
 # =========================================
 
-# 统计全局变量
 stats = {"success": 0, "jump": 0, "hit": 0, "error": 0}
 
 def log(msg, level="INFO"):
     timestamp = time.strftime("%H:%M:%S", time.localtime())
-    icons = {"INFO": "ℹ️", "SUCCESS": "✅", "ERROR": "❌", "WARN": "⚠️", "TIMER": "⏱️", "STATS": "📊"}
+    icons = {"INFO": "ℹ️", "SUCCESS": "✅", "ERROR": "❌", "WARN": "⚠️", "STEP": "🐾", "STATS": "📊"}
     print(f"[{timestamp}] {icons.get(level, '•')} {msg}", flush=True)
 
 def split_and_get_my_part(data_list):
@@ -44,17 +43,18 @@ def split_and_get_my_part(data_list):
     return parts[idx] if idx < len(parts) else []
 
 def run_task():
-    cf_vid = CF_VID(WORKER_VID_URL, API_KEY)
-    cf_token = CF_TOKEN(WORKER_TOKEN_URL, API_KEY)
+    db_vid = CF_VID(WORKER_VID_URL, API_KEY)
+    db_token = CF_TOKEN(WORKER_TOKEN_URL, API_KEY)
 
     bj_now = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=8)))
     current_hour = bj_now.hour
     log(f"⏰ 北京时间: {bj_now.strftime('%Y-%m-%d %H:%M:%S')} | 分片: {current_hour}")
     
-    result = cf_vid.get_data_slice(copy=current_hour, copies=COPIES)
+    log("正在从云端获取 VID 列表...", "STEP")
+    result = db_vid.get_data_slice(copy=current_hour, copies=COPIES)
     hour_data = result.get("data", [])
     vender_ids = split_and_get_my_part(hour_data)
-    log(f"任务分配: 本脚本执行 {len(vender_ids)}", "INFO")
+    log(f"任务分配: 本脚本分得 {len(vender_ids)} 条", "INFO")
 
     if not vender_ids: return
 
@@ -73,17 +73,14 @@ def run_task():
                 "--ignore-certificate-errors",
             ]
         )
-        
         context = browser.new_context(
             user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
             viewport={'width': 390, 'height': 844}
         )
 
-        log("任务启动：Stealth 模式已就绪", "INFO")
-
         for vid in vender_ids:
             if (time.time() - script_start_time) / 60 >= RUN_DURATION_MINUTES:
-                log("达到时长上限，停止", "TIMER")
+                log("达到时长上限，停止", "INFO")
                 break
 
             success_fetched = False
@@ -92,22 +89,23 @@ def run_task():
                 stealth_sync(page)
                 
                 try:
-                    log(f"正在扫描店铺: {vid} ({attempt+1}/{MAX_RETRIES})")
-                    
-                    # 使用较温和的等待策略
+                    # --- 步骤 1: 访问页面 ---
+                    log(f"[{vid}] 步骤 1/4: 正在导航至店铺...", "STEP")
                     page.goto(f"https://shop.m.jd.com/shop/home?venderId={vid}", 
                              wait_until="domcontentloaded", timeout=20000)
                     
-                    # 强等 3 秒让跳转逻辑稳定
+                    # --- 步骤 2: 等待稳定 ---
+                    log(f"[{vid}] 步骤 2/4: 强制休眠 3s 等待跳转稳定...", "STEP")
                     time.sleep(3)
-
-                    # 记录跳转后的 URL
-                    current_url = page.url
-                    if "venderId=" not in current_url:
-                        log(f"⚠️ 页面跳转至非店铺页: {current_url}", "WARN")
+                    
+                    final_url = page.url
+                    if "venderId=" not in final_url:
+                        log(f"[{vid}] ⚠️ 判定干扰: 页面已跳至 {final_url}", "WARN")
                         stats["jump"] += 1
-                        break # 跳出重试循环
+                        break
 
+                    # --- 步骤 3: 执行 API Fetch ---
+                    log(f"[{vid}] 步骤 3/4: 正在注入脚本获取活动信息...", "STEP")
                     fetch_script = f"""
                     async () => {{
                         try {{
@@ -134,43 +132,44 @@ def run_task():
                             log(f"🎯 命中店铺 {vid} | Token: {token}", "SUCCESS")
                             stats["hit"] += 1
                             
-                            # --- 增强的 Token 上传日志 ---
-                            log(f"📡 正在上传 Token 至云端数据库...", "INFO")
-                            upload_res = cf_token.upload({"vid": vid, "token": token, "type": "hit"})
-                            log(f"📤 云端响应: {json.dumps(upload_res)}", "INFO")
-                            # ---------------------------
+                            # --- 步骤 4: 上传 Token ---
+                            log(f"[{vid}] 步骤 4/4: 正在同步 Token 到云端...", "STEP")
+                            upload_res = db_token.upload({"vid": vid, "token": token, "type": "hit"})
+                            
+                            # 这里取决于你的 cf_db.py 返回的是布尔值还是对象
+                            if isinstance(upload_res, dict):
+                                log(f"📤 云端响应: Status={upload_res.get('status')}, Msg={upload_res.get('text')}", "INFO")
+                            else:
+                                log(f"📤 云端同步结果: {'成功' if upload_res else '失败'}", "INFO")
                         else:
-                            log(f"店铺 {vid} | Code: {code} | 正常无活动", "INFO")
+                            log(f"[{vid}] 结果: 正常无活动", "INFO")
                         break 
                     else:
                         stats["error"] += 1
                         consecutive_errors += 1
-                        log(f"店铺 {vid} | Code: {code} | 接口拦截", "WARN")
+                        log(f"[{vid}] 结果: 接口拦截 (Code: {code})", "WARN")
                         break
 
                 except Exception as e:
-                    error_msg = str(e)
-                    current_url_error = page.url if page else "unknown"
-                    if "destroyed" in error_msg.lower() or "navigation" in error_msg.lower():
-                        log(f"⚠️ 跳转干扰导致上下文销毁 | 目标URL: {current_url_error}", "WARN")
+                    if "destroyed" in str(e).lower():
+                        log(f"[{vid}] ❌ 干扰: 评估期间页面发生跳转 (Context Destroyed)", "WARN")
                         stats["jump"] += 1
-                        break 
+                        break
                     else:
-                        log(f"❌ 运行异常: {error_msg[:50]}", "ERROR")
+                        log(f"[{vid}] ❌ 崩溃: {str(e)[:100]}", "ERROR")
                 finally:
                     page.close()
 
-            # 实时进度条显示
-            log(f"📊 当前进度: [成功:{stats['success']}] [跳转:{stats['jump']}] [命中:{stats['hit']}] [异常:{stats['error']}]", "STATS")
+            log(f"📊 实时汇总: [成功:{stats['success']}] [跳转:{stats['jump']}] [命中:{stats['hit']}] [接口错误:{stats['error']}]", "STATS")
 
             if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
-                log(f"🚨 连续接口报错达 {MAX_CONSECUTIVE_ERRORS} 次，停止", "ERROR")
+                log(f"连续错误达 {MAX_CONSECUTIVE_ERRORS} 次，判定 IP 已黑", "ERROR")
                 break
             
-            time.sleep(random.uniform(1.5, 3))
+            time.sleep(random.uniform(1, 2))
 
         browser.close()
-        log("任务圆满结束", "INFO")
+        log("任务结束", "INFO")
 
 if __name__ == "__main__":
     run_task()
