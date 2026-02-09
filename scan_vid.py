@@ -137,7 +137,7 @@ def run_task():
                             token = re.search(r'token=([^&]+)', isv_url).group(1) if "token=" in isv_url else "N/A"
                             log(f"🎯 命中店铺 {vid} | Token: {token}", "SUCCESS")
                             # 上传并打印反馈
-                            up_res = db_token.upload({"vid": vid, "token": token, "type": "hit"})
+                            up_res = db_token.upload({"vid": vid, "token": token})
                             log(f"📡 同步结果: OK={up_res.get('ok')} | Http={up_res.get('code')} | Msg={up_res.get('body')}", "SYNC")
                         else:
                             log(f"店铺 {vid} 正常无活动", "INFO")
