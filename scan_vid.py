@@ -130,7 +130,7 @@ def run_task():
                 break
             
             # 极速版建议延迟 0.4-0.8s
-            time.sleep(random.uniform(0.4, 0.8))
+            time.sleep(random.uniform(6, 8))
 
         browser.close()
         log("扫描流程结束", "INFO")
