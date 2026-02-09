@@ -7,7 +7,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from playwright.sync_api import sync_playwright
 from cf_db import CF_VID, CF_TOKEN
-from ip2free_fetcher import get_all_proxies
+
 # 尝试导入 stealth
 try:
     from playwright_stealth import stealth_sync
@@ -51,17 +51,7 @@ def cooldown_sleep(streak):
     log(f"🧠 风控冷却 sleep {t:.1f}s", "WARN")
     time.sleep(t)
 
-def run_task():
-    # 获取所有账号的代理
-    proxy_data = get_all_proxies()
-    
-    for account in proxy_data:
-        print(f"账号: {account['email']} | 状态: {account['msg']}")
-        print(f"无限代理数量: {len(account['unlimited'])}")
-        # 打印具体的代理
-        for p in account['unlimited']:
-            print(f"可用代理: {p}")
-        
+def run_task():       
     db_vid = CF_VID(WORKER_VID_URL, API_KEY)
     db_token = CF_TOKEN(WORKER_TOKEN_URL, API_KEY)
 
