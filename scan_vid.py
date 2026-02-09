@@ -141,7 +141,7 @@ def run_task():
                 break
             
             # 极速模式下建议保留 0.5s 左右的间隔
-            time.sleep(random.uniform(0.4, 0.8))
+            time.sleep(random.uniform(6, 8))
 
         browser.close()
         log(f"任务结束。总计扫描: {stats['total_scanned']} | 命中总数: {stats['hit']}", "INFO")
