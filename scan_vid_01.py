@@ -65,8 +65,8 @@ def getdata(my_array):
 def run_task():
     vender_ids = [];
     copies = 23;
-    // 获取北京时间小时数
-    // Cloudflare Worker 的 Date.now() 是 UTC 时间，+8 小时得到北京时间
+    #获取北京时间小时数
+    #Cloudflare Worker 的 Date.now() 是 UTC 时间，+8 小时得到北京时间
     const bjTime = new Date(Date.now() + 8 * 60 * 60 * 1000);
     const copy = bjTime.getUTCHours(); // 获取 0-23 之间的小时数
     # 初始化
