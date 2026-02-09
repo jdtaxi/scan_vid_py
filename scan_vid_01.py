@@ -70,7 +70,7 @@ def run_task():
     const bjTime = new Date(Date.now() + 8 * 60 * 60 * 1000);
     const copy = bjTime.getUTCHours(); // 获取 0-23 之间的小时数
     # 初始化
-    cf_vid = CF_VID("https://your-worker.workers.dev", "my-secret-key")
+    cf_vid = CF_VID("https://vid.zshyz.us.ci", "leaflow")
     
     result = cf_vid.get_data_slice(copy=copy, copies=copies)
         
