@@ -5,41 +5,32 @@ from typing import List, Any, Dict, Optional
 
 class CF_VID:
     def __init__(self, base_url: str, api_key: str):
-        """
-        初始化数据库连接
-        :param base_url: Worker 的 URL (例如 https://name.workers.dev)
-        :param api_key: 校验密钥
-        """
         self.base_url = base_url.rstrip('/')
-        self.api_key = api_key
-        self.headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
-        }
-        # 使用 Session 自动处理连接池，提高性能
         self.session = requests.Session()
-        self.session.headers.update(self.headers)
+        # 统一 Bearer 认证格式
+        auth_val = f"Bearer {api_key}" if not api_key.startswith("Bearer ") else api_key
+        self.session.headers.update({"Authorization": auth_val, "Content-Type": "application/json"})
 
-    def get_data_slice(self, start: int, copies: int) -> Dict[str, Any]:
-        """
-        获取数据库分片数据
-        :param start: 数组起始位置
-        :param copies: 分成几份 (决定获取的长度)
-        :return: 包含 info 和 data 的字典
-        """
+    def get_data_slice(self, copy: int, copies: int):
+        """获取分片数据"""
         url = f"{self.base_url}/get"
-        payload = {
-            "start": start,
-            "copies": copies
-        }
-
         try:
-            response = self.session.post(url, json=payload, timeout=10)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            print(f"请求失败: {e}")
-            return {"error": str(e), "data": []}
+            res = self.session.post(url, json={"copy": copy, "copies": copies}, timeout=15)
+            res.raise_for_status()
+            return res.json()
+        except Exception as e:
+            print(f"DB Get Error: {e}")
+            return {"data": []}
+
+    def update_data(self, data_list):
+        """追加数据"""
+        url = f"{self.base_url}/update"
+        try:
+            res = self.session.post(url, json=data_list, timeout=15)
+            return res.status_code == 200
+        except Exception as e:
+            print(f"DB Update Error: {e}")
+            return False
 
 
 class CF_TOKEN:
