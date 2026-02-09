@@ -113,7 +113,8 @@ def run_task():
                     # ======== 访问店铺（完全按你给的版本） ========
                     log(f"正在扫描店铺: {vid}", "INFO")
                     page.goto(
-                        f"https://shop.m.jd.com/shop/home?venderId={vid}",
+                        f"https://m.jd.com",
+                        #f"https://shop.m.jd.com/shop/home?venderId={vid}",
                         wait_until="domcontentloaded",
                         timeout=20000
                     )
