@@ -1,4 +1,9 @@
-import os, sys, time, json, random, re
+import os
+import sys
+import time
+import json
+import random
+import re
 from datetime import datetime, timedelta, timezone
 from playwright.sync_api import sync_playwright
 from cf_db import CF_VID, CF_TOKEN
@@ -9,10 +14,11 @@ TARGET_PATTERN = os.environ.get("TARGET_PATTERN", "2PAAf74aG3D61qvfKUM5dxUssJQ9"
 WORKER_VID_URL = os.environ.get("WORKER_VID_URL", "https://vid.zshyz.us.ci")
 WORKER_TOKEN_URL = os.environ.get("WORKER_TOKEN_URL", "https://token.zshyz.us.ci")
 RUN_DURATION_MINUTES = int(os.environ.get("RUN_DURATION_MINUTES", 10))
+
 MAX_CONSECUTIVE_ERRORS = 3
 # =======================================
 
-# ===== UA 池（真实 JD 用户）=====
+# ===== UA 池（真实 JD m 端）=====
 UA_POOL = [
     "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
     "Mozilla/5.0 (iPhone; CPU iPhone OS 15_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.7 Mobile/15E148 Safari/604.1",
@@ -29,7 +35,13 @@ stats = {
 }
 
 def log(msg, level="INFO"):
-    icons = {"INFO": "ℹ️", "SUCCESS": "✅", "WARN": "⚠️", "ERROR": "❌", "STATS": "📊"}
+    icons = {
+        "INFO": "ℹ️",
+        "SUCCESS": "✅",
+        "WARN": "⚠️",
+        "ERROR": "❌",
+        "STATS": "📊",
+    }
     ts = time.strftime("%H:%M:%S")
     print(f"[{ts}] {icons.get(level,'•')} {msg}", flush=True)
 
@@ -44,10 +56,10 @@ def build_headers(ua, vid):
         "referer": f"https://shop.m.jd.com/shop/home?venderId={vid}",
     }
 
-# ===== 新 Context =====
+# ===== 新建 Context（UA 固定）=====
 def new_context(browser):
     ua = random.choice(UA_POOL)
-    log(f"🔁 新建 Context | UA={ua[:45]}...", "INFO")
+    log(f"🔁 新建 Context | UA={ua[:50]}...", "INFO")
 
     ctx = browser.new_context(
         user_agent=ua,
@@ -59,15 +71,21 @@ def new_context(browser):
         timezone_id="Asia/Shanghai",
     )
 
-    # 轻量养环境（一次就够）
-    page = ctx.new_page()
-    page.goto("https://shop.m.jd.com", wait_until="domcontentloaded", timeout=15000)
-    page.close()
+    # ✅ 正确做法：自己保存 UA
+    ctx._ua = ua
+
+    # 轻量“养环境”（只一次）
+    try:
+        page = ctx.new_page()
+        page.goto("https://shop.m.jd.com", wait_until="domcontentloaded", timeout=15000)
+        page.close()
+    except Exception:
+        pass
 
     stats["context_switch"] += 1
     return ctx
 
-# ===== 接口请求（核心）=====
+# ===== JD 接口请求（核心）=====
 def fetch_shop_info(context, vid):
     body = (
         "functionId=whx_getShopHomeActivityInfo"
@@ -77,11 +95,9 @@ def fetch_shop_info(context, vid):
         "&client=wh5"
     )
 
-    ua = context._options["user_agent"]
-
     res = context.request.post(
         "https://api.m.jd.com/client.action",
-        headers=build_headers(ua, vid),
+        headers=build_headers(context._ua, vid),
         data=body,
         timeout=15000,
     )
@@ -149,7 +165,7 @@ def run_task():
                 error_streak += 1
                 log(f"店铺 {vid} 异常 ({error_streak}): {e}", "WARN")
 
-            # 🚨 换 Context 条件
+            # 🚨 Context 更换条件
             if error_streak >= MAX_CONSECUTIVE_ERRORS or vid_in_ctx >= max_vid_per_ctx:
                 context.close()
                 context = new_context(browser)
@@ -161,7 +177,6 @@ def run_task():
 
         browser.close()
 
-    # ===== 统计输出 =====
     log(
         f"扫描={stats['total']} | 成功={stats['success']} | 命中={stats['hit']} | "
         f"异常={stats['error']} | Context切换={stats['context_switch']}",
