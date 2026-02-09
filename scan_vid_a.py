@@ -111,7 +111,7 @@ def run_task():
 
                 try:
                     # ======== 访问店铺（完全按你给的版本） ========
-                    log(f"正在扫描店铺: {vid}", "INFO")
+                    #log(f"正在扫描店铺: {vid}", "INFO")
                     page.goto(
                         f"https://m.jd.com",
                         #f"https://shop.m.jd.com/shop/home?venderId={vid}",
@@ -154,7 +154,7 @@ def run_task():
                         stats["error"] += 1
                         
                         consecutive_errors += 1
-                        log(f"店铺 {vid} 异常 ({consecutive_errors}/{MAX_CONSECUTIVE_ERRORS})", "WARN")
+                        log(f"{stats['total_scanned']}->店铺 {vid} 异常 ({consecutive_errors}/{MAX_CONSECUTIVE_ERRORS})", "WARN")
                         cooldown_sleep(consecutive_errors)
 
                 except Exception as e:
