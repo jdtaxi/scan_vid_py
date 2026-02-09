@@ -1,7 +1,6 @@
 import requests
 import json
 from datetime import datetime, timedelta, timezone
-import requests
 from typing import List, Any, Dict, Optional
 
 class CF_TOKEN:
