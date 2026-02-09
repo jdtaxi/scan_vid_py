@@ -41,7 +41,6 @@ def split_and_get_my_part(data_list):
     idx = (script_idx - 1) if script_idx > 0 else 0
     return parts[idx] if idx < len(parts) else []
 
-# 🧠 冷却
 def cooldown_sleep(streak):
     if streak == 1:
         t = random.uniform(8, 12)
@@ -52,18 +51,6 @@ def cooldown_sleep(streak):
     log(f"🧠 风控冷却 sleep {t:.1f}s", "WARN")
     time.sleep(t)
 
-# 🔐 注入 JD 登录态
-def inject_jd_cookie(context):
-    pt_key = os.environ.get("JD_PT_KEY")
-    pt_pin = os.environ.get("JD_PT_PIN")
-    if not pt_key or not pt_pin:
-        log("未配置 pt_key / pt_pin，使用匿名态")
-        return
-    context.add_cookies([
-        {"name": "pt_key", "value": pt_key, "domain": ".jd.com", "path": "/", "httpOnly": True, "secure": True},
-        {"name": "pt_pin", "value": pt_pin, "domain": ".jd.com", "path": "/", "httpOnly": True, "secure": True},
-    ])
-    log("🔐 已注入 pt_key / pt_pin", "SUCCESS")
 
 def run_task():
     db_vid = CF_VID(WORKER_VID_URL, API_KEY)
@@ -75,13 +62,13 @@ def run_task():
     result = db_vid.get_data_slice(copy=bj_now.hour, copies=COPIES)
     vender_ids = split_and_get_my_part(result.get("data", []))
     log(f"任务分配: 本脚本执行 {len(vender_ids)} 条", "INFO")
-    if not vender_ids: return
+    if not vender_ids:
+        return
 
     script_start_time = time.time()
     consecutive_errors = 0
 
     with sync_playwright() as p:
-        # 优化 1：启动参数优化
         browser = p.chromium.launch(
             headless=True,
             args=[
@@ -94,7 +81,6 @@ def run_task():
             ]
         )
 
-        # 优化 2：深度伪造浏览器上下文
         context = browser.new_context(
             user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
             viewport={'width': 390, 'height': 844},
@@ -105,7 +91,6 @@ def run_task():
             timezone_id="Asia/Shanghai"
         )
 
-        inject_jd_cookie(context)
 
         log("任务启动：已加载深度 Stealth 优化配置", "INFO")
 
@@ -116,7 +101,6 @@ def run_task():
                     break
 
                 page = context.new_page()
-
                 stealth_sync(page)
                 page.add_init_script("""
                     Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
@@ -125,10 +109,14 @@ def run_task():
                 """)
 
                 try:
+                    # ======== 访问店铺（完全按你给的版本） ========
                     log(f"正在扫描店铺: {vid}", "INFO")
-                    page.goto(f"https://shop.m.jd.com/shop/home?venderId={vid}",
-                              wait_until="domcontentloaded",
-                              timeout=20000)
+                    page.goto(
+                        f"https://shop.m.jd.com/shop/home?venderId={vid}",
+                        wait_until="domcontentloaded",
+                        timeout=20000
+                    )
+
                     time.sleep(random.uniform(1, 3))
 
                     fetch_script = f"""
@@ -146,6 +134,7 @@ def run_task():
                     }}
                     """
                     res_json = page.evaluate(fetch_script)
+                    # ============================================
 
                     if res_json and res_json.get("code") == "0":
                         stats["success"] += 1
@@ -154,61 +143,27 @@ def run_task():
                         isv_url = res_json.get("result", {}).get("signStatus", {}).get("isvUrl", "")
                         if TARGET_PATTERN in isv_url:
                             token = re.search(r'token=([^&]+)', isv_url).group(1) if "token=" in isv_url else "N/A"
-                            log(f"🎯 命中店铺 {vid} | Token: {token}", "SUCCESS")
+                            log(f"{stats["total_scanned"]}->🎯 命中店铺 {vid} | Token: {token}", "SUCCESS")
                             up_res = db_token.upload({"vid": vid, "token": token})
                             log(f"📡 同步结果: OK={up_res.get('ok')} | Http={up_res.get('code')} | Msg={up_res.get('body')}", "SYNC")
                         else:
-                            log(f"店铺 {vid} 正常无活动", "INFO")
+                            log(f"{stats["total_scanned"]}->店铺 {vid} 正常无活动", "INFO")
                     else:
                         stats["error"] += 1
                         stats["total_scanned"] += 1
                         consecutive_errors += 1
-                        error_msg = res_json.get('msg', '风控拦截')
-                        log(f"店铺 {vid} 异常 ({consecutive_errors}/{MAX_CONSECUTIVE_ERRORS}): {error_msg}", "WARN")
+                        log(f"店铺 {vid} 异常 ({consecutive_errors}/{MAX_CONSECUTIVE_ERRORS})", "WARN")
                         cooldown_sleep(consecutive_errors)
-                        if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
-                            log("连续报错 3 次，换 Context...", "ERROR")
-                            context.close()
-                            context = browser.new_context(
-                                user_agent=random.choice([
-                                    "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
-                                    "Mozilla/5.0 (iPhone; CPU iPhone OS 15_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.7 Mobile/15E148 Safari/604.1"
-                                ]),
-                                viewport={'width': 390, 'height': 844},
-                                device_scale_factor=3,
-                                is_mobile=True,
-                                has_touch=True,
-                                locale="zh-CN",
-                                timezone_id="Asia/Shanghai"
-                            )
-                            inject_jd_cookie(context)
-                            consecutive_errors = 0
 
                 except Exception as e:
                     consecutive_errors += 1
                     stats["error"] += 1
-                    log(f"页面崩溃 ({consecutive_errors}/{MAX_CONSECUTIVE_ERRORS}): {e}", "WARN")
+                    log(f"{stats["total_scanned"]}->页面崩溃 ({consecutive_errors}/{MAX_CONSECUTIVE_ERRORS}): {e}", "WARN")
                     cooldown_sleep(consecutive_errors)
-                    if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
-                        context.close()
-                        context = browser.new_context(
-                            user_agent=random.choice([
-                                "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
-                                "Mozilla/5.0 (iPhone; CPU iPhone OS 15_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.7 Mobile/15E148 Safari/604.1"
-                            ]),
-                            viewport={'width': 390, 'height': 844},
-                            device_scale_factor=3,
-                            is_mobile=True,
-                            has_touch=True,
-                            locale="zh-CN",
-                            timezone_id="Asia/Shanghai"
-                        )
-                        inject_jd_cookie(context)
-                        consecutive_errors = 0
 
                 finally:
                     page.close()
-                    time.sleep(random.uniform(3, 7))
+                    time.sleep(random.uniform(5, 8))
 
         finally:
             browser.close()
