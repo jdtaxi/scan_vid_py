@@ -3,7 +3,7 @@ import json
 from datetime import datetime, timedelta, timezone
 from typing import List, Any, Dict, Optional
 
-class CF_TOKEN:
+class CF_VID:
     def __init__(self, base_url: str, api_key: str):
         """
         初始化数据库连接
@@ -42,7 +42,7 @@ class CF_TOKEN:
             return {"error": str(e), "data": []}
 
 
-class CF_VID:
+class CF_TOKEN:
     def __init__(self, base_url, api_key):
         self.base_url = base_url.rstrip('/')
         self.headers = {
@@ -96,7 +96,7 @@ class CF_VID:
 
 # --- 调用演示 ---
 if __name__ == "__main__":
-    worker = CF_VID("https://token.zshyz.us.ci", "leaflow")
+    worker = CF_TOKEN("https://token.zshyz.us.ci", "leaflow")
     
     # 获取昨天数据
     yesterday = worker.get_yesterday_data()
@@ -113,7 +113,7 @@ if __name__ == "__main__":
     SECRET_KEY = "my-secret-key"
 
     # 1. 初始化
-    db = CF_TOKEN(WORKER_URL, SECRET_KEY)
+    db = CF_VID(WORKER_URL, SECRET_KEY)
 
     # 2. 调用函数：从 0 开始，取总数的 1/10
     result = db.get_data_slice(start=0, copies=10)
