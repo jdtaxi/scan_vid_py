@@ -100,16 +100,19 @@ def run_task():
 
                 try:
                     log(f"正在扫描店铺: {vid} (尝试 {attempt+1}/{MAX_RETRIES})")
-                    # 关键修改：使用 networkidle 确保跳转结束
-                    page.goto(f"https://shop.m.jd.com/shop/home?venderId={vid}", 
-                             wait_until="networkidle", timeout=30000)
                     
-                    # 验证当前是否还在正常的店铺页面
-                    if "captcha" in page.url or "login" in page.url:
-                        log(f"店铺 {vid} 触发验证码/登录重定向，跳过该店铺", "WARN")
-                        break # 跳出重试循环，直接下一个 VID
+                    # 降低等待强度，只要 DOM 加载了就进去
+                    page.goto(f"https://shop.m.jd.com/shop/home?venderId={vid}", 
+                             wait_until="domcontentloaded", timeout=20000)
+                    
+                    # ⚠️ 关键补丁：强制休眠 3 秒，避开页面初始跳转的高发期
+                    time.sleep(3)
 
-                    time.sleep(random.uniform(1.5, 2.5))
+                    # 实时 URL 检查
+                    curr_url = page.url
+                    if "captcha" in curr_url or "login" in curr_url:
+                        log(f"店铺 {vid} 已被重定向至验证页: {curr_url[:40]}...", "WARN")
+                        break # 既然跳了，重试也没用，跳过该店
 
                     fetch_script = f"""
                     async () => {{
@@ -125,6 +128,7 @@ def run_task():
                         }}
                     }}
                     """
+                    # 执行评估，捕获潜在的跳转异常
                     res_json = page.evaluate(fetch_script)
                     
                     code = res_json.get("code", "unknown")
@@ -138,13 +142,14 @@ def run_task():
                         else:
                             log(f"店铺 {vid} | Code: {code} | 正常无活动", "INFO")
                         success_fetched = True
-                        break
+                        break 
                     else:
-                        log(f"店铺 {vid} | Code: {code} | 异常响应", "WARN")
+                        log(f"店铺 {vid} | Code: {code} | 接口拦截", "WARN")
                 
                 except Exception as e:
-                    if "destroyed" in str(e).lower():
-                        log(f"⚠️ 页面正在跳转，尝试重连 {vid}", "WARN")
+                    if "destroyed" in str(e).lower() or "navigation" in str(e).lower():
+                        log(f"⚠️ 页面跳转导致上下文失效，跳过该店铺", "WARN")
+                        break # 不重试了，避免卡死
                     else:
                         log(f"❌ 运行错误: {str(e)[:50]}", "ERROR")
                 finally:
