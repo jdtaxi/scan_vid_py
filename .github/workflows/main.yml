@@ -11,7 +11,7 @@ jobs:
     strategy:
       matrix:
         # 这里定义并行索引，比如 1 到 3
-        index: ["01", "02", "03"]
+        index: ["01"]
     
     steps:
       - name: Checkout Code
