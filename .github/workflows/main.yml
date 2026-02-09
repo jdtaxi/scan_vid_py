@@ -49,6 +49,7 @@ jobs:
           MAX_RETRIES: ${{ vars.MAX_RETRIES }}
           NUM_PARTS: ${{ vars.NUM_PARTS }}
           COPIES: ${{ vars.COPIES }}
+          IP2FREE_ACCOUNTS: ${{ secrets.IP2FREE_ACCOUNTS }}
         run: |
           # 动态复制文件以匹配你脚本中的正则解析索引逻辑
           cp scan_vid_a.py scan_vid_a_${{ matrix.index }}.py
