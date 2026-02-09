@@ -22,8 +22,7 @@ jobs:
 
       - name: Run Sync Script
         env:
-          # 以下三个变量均需在仓库的 Secrets 中配置
           GH_PAT: ${{ secrets.GH_PAT }}
           IP2FREE_ACCOUNTS: ${{ secrets.IP2FREE_ACCOUNTS }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
+        # 使用 python -u 运行
         run: python -u ip2free_fetcher.py
