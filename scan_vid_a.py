@@ -21,8 +21,8 @@ WORKER_VID_URL = os.environ.get("WORKER_VID_URL", "https://vid.zshyz.us.ci")
 WORKER_TOKEN_URL = os.environ.get("WORKER_TOKEN_URL", "https://token.zshyz.us.ci")
 RUN_DURATION_MINUTES = int(os.environ.get("RUN_DURATION_MINUTES", 10))
 MAX_CONSECUTIVE_ERRORS = 10
-COPIES = int(os.environ.get("COPIES", 23))
-NUM_PARTS = int(os.environ.get("NUM_PARTS", 100))
+COPIES = int(os.environ.get("COPIES", 46))
+NUM_PARTS = int(os.environ.get("NUM_PARTS", 20))
 # =========================================
 
 stats = {"success": 0, "hit": 0, "blocked": 0, "error": 0, 'total_scanned': 0}
