@@ -51,7 +51,6 @@ def cooldown_sleep(streak):
     log(f"🧠 风控冷却 sleep {t:.1f}s", "WARN")
     time.sleep(t)
 
-
 def run_task():
     db_vid = CF_VID(WORKER_VID_URL, API_KEY)
     db_token = CF_TOKEN(WORKER_TOKEN_URL, API_KEY)
@@ -67,6 +66,7 @@ def run_task():
 
     script_start_time = time.time()
     consecutive_errors = 0
+    failed_vids = []  # 用于存放需要重试的 vid
 
     with sync_playwright() as p:
         browser = p.chromium.launch(
@@ -91,31 +91,26 @@ def run_task():
             timezone_id="Asia/Shanghai"
         )
 
-
         log("任务启动：已加载深度 Stealth 优化配置", "INFO")
 
-        try:
-            for vid in vender_ids:
+        def scan_vids(target_list, is_retry=False):
+            nonlocal consecutive_errors
+            tag = "[重试]" if is_retry else ""
+            
+            for vid in target_list:
                 stats['total_scanned'] += 1
                 if (time.time() - script_start_time) / 60 >= RUN_DURATION_MINUTES:
-                    log("达到时长上限，停止", "TIMER")
-                    break
+                    log(f"达到时长上限，停止{tag}", "TIMER")
+                    return False # 结束整个函数
 
                 page = context.new_page()
                 stealth_sync(page)
                 page.add_init_script("""
                     (() => {
-                        // 1. 深度隐藏 WebDriver
                         Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-                        
-                        // 2. 模拟真实的 Chrome 环境
                         window.chrome = { runtime: {}, loadTimes: function() {}, csi: function() {}, app: {} };
-                        
-                        // 3. 语言与插件伪造
                         Object.defineProperty(navigator, 'languages', {get: () => ['zh-CN', 'zh', 'en']});
                         Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});
-                
-                        // 4. 优化 Canvas 混淆
                         const originalCanvasToDataURL = HTMLCanvasElement.prototype.toDataURL;
                         HTMLCanvasElement.prototype.toDataURL = function(type) {
                             if (type === 'image/png') {
@@ -127,8 +122,6 @@ def run_task():
                             }
                             return originalCanvasToDataURL.apply(this, arguments);
                         };
-                
-                        // 5. WebGL 渲染器伪造
                         const getParameter = WebGLRenderingContext.prototype.getParameter;
                         WebGLRenderingContext.prototype.getParameter = function(parameter) {
                             if (parameter === 37445) return 'Apple Inc.'; 
@@ -139,18 +132,10 @@ def run_task():
                 """)
 
                 try:
-                    # ======== 访问店铺 ========
-                    page.goto(
-                        f"https://m.jd.com",
-                        wait_until="domcontentloaded",
-                        timeout=20000
-                    )
+                    page.goto(f"https://m.jd.com", wait_until="domcontentloaded", timeout=20000)
                     page.mouse.move(random.randint(0, 100), random.randint(0, 100))
                     page.mouse.wheel(0, random.randint(500, 800))
-                    time.sleep(1)
-                    page.mouse.wheel(0, -200)
-
-                    time.sleep(random.uniform(1, 3))
+                    time.sleep(random.uniform(1.5, 3))
 
                     fetch_script = f"""
                     async () => {{
@@ -174,35 +159,41 @@ def run_task():
                         isv_url = res_json.get("result", {}).get("signStatus", {}).get("isvUrl", "")
                         if TARGET_PATTERN in isv_url:
                             token = re.search(r'token=([^&]+)', isv_url).group(1) if "token=" in isv_url else "N/A"
-                            log(f"{stats['total_scanned']}->🎯 命中店铺 {vid} | Token: {token}", "SUCCESS")
-                            up_res = db_token.upload({"vid": vid, "token": token})
-                            log(f"📡 同步结果: OK={up_res.get('ok')} | Http={up_res.get('code')} | Msg={up_res.get('body')}", "SYNC")
+                            log(f"{tag}{stats['total_scanned']}->🎯 命中 {vid} | Token: {token}", "SUCCESS")
+                            db_token.upload({"vid": vid, "token": token})
                         else:
-                            log(f"{stats['total_scanned']}->店铺 {vid} 正常无活动", "INFO")
+                            log(f"{tag}{stats['total_scanned']}->店铺 {vid} 正常", "INFO")
                     else:
                         stats["error"] += 1
                         consecutive_errors += 1
-                        log(f"{stats['total_scanned']}->店铺 {vid} 异常 code {res_json.get('code')}({consecutive_errors}/{MAX_CONSECUTIVE_ERRORS})", "WARN")
+                        log(f"{tag}{stats['total_scanned']}->店铺 {vid} 异常 code {res_json.get('code')}", "WARN")
+                        if not is_retry: failed_vids.append(vid) # 仅在初次扫描时加入重试队列
                         cooldown_sleep(consecutive_errors)
-                        if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
-                            break
+                        if consecutive_errors >= MAX_CONSECUTIVE_ERRORS: return False
 
                 except Exception as e:
                     consecutive_errors += 1
                     stats["error"] += 1
-                    log(f"{stats['total_scanned']}->页面崩溃 ({consecutive_errors}/{MAX_CONSECUTIVE_ERRORS}): {e}", "WARN")
-                    if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
-                        break
+                    log(f"{tag}{stats['total_scanned']}->页面崩溃 {vid}: {e}", "WARN")
+                    if not is_retry: failed_vids.append(vid)
+                    if consecutive_errors >= MAX_CONSECUTIVE_ERRORS: return False
                     cooldown_sleep(consecutive_errors)
-
                 finally:
                     page.close()
-                    time.sleep(random.uniform(5, 8))
+                    time.sleep(random.uniform(4, 7))
+            return True
 
-        finally:
-            browser.close()
-            log("任务结束，清理完成", "INFO")
+        # --- 执行初次扫描 ---
+        should_continue = scan_vids(vender_ids, is_retry=False)
 
+        # --- 执行重试扫描 (如果初次扫描因风控中断或有失败记录) ---
+        if failed_vids and should_continue:
+            log(f"🔄 开始重试第初次扫描失败的 {len(failed_vids)} 条数据...", "STATS")
+            time.sleep(10) # 重试前多休息一会
+            scan_vids(failed_vids, is_retry=True)
+
+        log("任务结束，清理完成", "INFO")
+        browser.close()
 
 if __name__ == "__main__":
     run_task()
