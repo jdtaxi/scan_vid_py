@@ -30,7 +30,7 @@ stats = {"success": 0, "hit": 0, "blocked": 0, "error": 0, 'total_scanned': 0}
 
 def log(msg, level="INFO"):
     timestamp = time.strftime("%H:%M:%S", time.localtime())
-    icons = {"INFO": "ℹ️", "SUCCESS": "✅", "ERROR": "❌", "WARN": "⚠️", "STATS": "📊", "SYNC": "📡", "RAW": "📝"}
+    icons = {"INFO": "ℹ️", "SUCCESS": "✅", "ERROR": "❌", "WARN": "⚠️", "STATS": "📊", "SYNC": "📡", "RAW": "📝","RISK": "🧠"}
     print(f"[{timestamp}] {icons.get(level, '•')} {msg}", flush=True)
 
 def split_and_get_my_part(data_list):
@@ -49,7 +49,7 @@ def cooldown_sleep(streak):
         t = random.uniform(8, 12)
     else:
         t = random.uniform(14, 18)
-    log(f"🧠 风控冷却 sleep {t:.1f}s", "WARN")
+    log(f"风控冷却 sleep {t:.1f}s", "RISK")
     time.sleep(t)
 
 def run_task():       
@@ -59,7 +59,7 @@ def run_task():
     # 1. 查询 IP
     try:
         current_ip = requests.get('https://api.ipify.org', timeout=10).text
-        log(f"🌐 任务启动 IP: {current_ip}", "INFO")
+        log(f"任务启动 IP: {current_ip}", "INFO")
     except: pass
 
     bj_now = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=8)))
@@ -185,7 +185,7 @@ def run_task():
                         round_failed.append(vid)
                         cooldown_sleep(consecutive_errors)
                         if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
-                            log(f"❌ 连续异常达上限，中断本轮", "ERROR")
+                            log(f"连续异常达上限，中断本轮", "ERROR")
                             return False, round_failed
 
                 except Exception as e:
@@ -217,7 +217,7 @@ def run_task():
             if not is_ok: # 如果因为时长或连续错误中断，跳出大循环
                 break
 
-        log(f"📊 任务结束 | 总量: {len(vender_ids)} | 成功: {stats['success']} | 最终失败: {len(pending_vids)}", "STATS")
+        log(f"任务结束 | 总量: {len(vender_ids)} | 成功: {stats['success']} | 最终失败: {len(pending_vids)}", "STATS")
         browser.close()
 
 if __name__ == "__main__":
