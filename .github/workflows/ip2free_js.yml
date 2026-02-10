@@ -1,4 +1,4 @@
-name: Auto Update Socksproxy Secret (JS Version)
+name: Auto Update Socksproxy(JS Version)
 
 on:
   repository_dispatch: # 支持通过 API 触发
