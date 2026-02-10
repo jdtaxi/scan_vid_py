@@ -29,4 +29,4 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           IP2FREE_ACCOUNTS: ${{ secrets.IP2FREE_ACCOUNTS }}
         # 运行重构后的 JS 脚本
-        run: node send_tg_report.js
+        run: node ip2free_fetcher.js
