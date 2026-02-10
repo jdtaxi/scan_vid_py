@@ -39,7 +39,8 @@ const log = (msg, level = "INFO") => {
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const splitAndGetMyPart = (dataList) => {
-  const fileName = path.basename(fileURLToPath(import.meta.url));
+  // 在 CommonJS 中，__filename 变量是直接可用的，不需要转换
+  const fileName = path.basename(__filename); // ✅ 正确写法
   const match = fileName.match(/(\d+)/);
   const scriptIdx = match ? parseInt(match[1]) : 0;
   
