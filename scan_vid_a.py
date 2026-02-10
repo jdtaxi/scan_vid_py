@@ -57,11 +57,18 @@ def run_task():
     db_token = CF_TOKEN(WORKER_TOKEN_URL, API_KEY)
 
     bj_now = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=8)))
-    log(f"⏰ 北京时间: {bj_now.strftime('%Y-%m-%d %H:%M:%S')} | 分片: {bj_now.hour}")
+    
+    # 核心：计算半小时分片
+    slice_idx = bj_now.hour * 2 + (1 if bj_now.minute >= 30 else 0)
+    
+    log(f"⏰ 北京时间: {bj_now.strftime('%Y-%m-%d %H:%M:%S')} | 分片: {slice_idx}")
 
-    result = db_vid.get_data_slice(copy=bj_now.hour, copies=COPIES)
+    # 这里建议确保你的环境变量 COPIES 设置为 48
+    result = db_vid.get_data_slice(copy=slice_idx, copies=COPIES)
     vender_ids = split_and_get_my_part(result.get("data", []))
-    log(f"任务分配: 本脚本执行 {len(vender_ids)} 条", "INFO")
+    
+    log(f"任务分配: 本分片({slice_idx})执行 {len(vender_ids)} 条", "INFO")
+
     if not vender_ids:
         return
 
