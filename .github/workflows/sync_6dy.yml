@@ -9,7 +9,7 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     permissions:
-      contents: write     # 赋予写权限以允许 push
+      contents: write     # 必须赋予写权限
       
     steps:
       - name: Checkout My Code
@@ -24,32 +24,31 @@ jobs:
 
       - name: Sync Function Folder
         run: |
-          # 1. 克隆上游仓库到临时目录 (只拉取最近一次提交，速度极快)
+          # 1. 克隆上游仓库到临时目录
           git clone --depth 1 https://github.com/6dylan6/jdpro.git temp_upstream
           
           # 2. 确保本地目标目录存在
           mkdir -p function
           
-          # 3. 同步内容：将临时目录里的 function 文件夹内容拷贝过来
-          # 使用 -f 强制覆盖，使用 -n 不覆盖已存在的（根据需求选，这里建议覆盖以保持更新）
+          # 3. 同步内容
           cp -rf temp_upstream/function/* ./function/
           
-          # 4. 关键：为 Node.js ESM 模式补全后缀名
-          # 如果同步过来的文件叫 dylib（没后缀），Node 跑不起来，所以复制一份加 .js
+          # 4. 补全 Node.js 所需的后缀名
           cd function
           [ -f dylib ] && cp dylib dylib.js || echo "dylib not found"
           [ -f dylans ] && cp dylans dylans.js || echo "dylans not found"
           cd ..
           
-          # 5. 删除临时克隆的仓库
+          # 5. 清理
           rm -rf temp_upstream
 
       - name: Push Changes
         run: |
           git add function/
-          # 检查是否有内容变更，有则提交，无则跳过（防止报错）
+          # 检查是否有变更。--quiet 如果没有差异则返回 0
           if git diff --staged --quiet; then
             echo "No changes detected, skipping commit."
           else
             git commit -m "Automated Sync: update function folder and add .js suffixes"
             git push origin main
+          fi
