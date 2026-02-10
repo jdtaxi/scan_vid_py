@@ -25,17 +25,25 @@ jobs:
       - name: Sync Function Folder
         run: |
           git clone --depth 1 https://github.com/6dylan6/jdpro.git temp_upstream
+          
+          # 1. 彻底删除旧的 function 目录，确保没有残留
+          rm -rf function
           mkdir -p function
+          
+          # 2. 拷贝最新内容
           cp -rf temp_upstream/function/* ./function/
           
-          # 关键修改：改用 .cjs 后缀
+          # 3. 核心修复：进入目录强制生成 .cjs 文件
           cd function
-          [ -f dylib ] && cp dylib dylib.cjs || echo "dylib not found"
-          [ -f dylans ] && cp dylans dylans.cjs || echo "dylans not found"
+          # 使用 -v 参数可以看到拷贝过程，方便在日志里查错
+          [ -f dylib ] && cp -v dylib dylib.cjs || echo "Error: dylib not found"
+          [ -f dylans ] && cp -v dylans dylans.cjs || echo "Error: dylans not found"
+          
+          # 4. 检查当前目录到底生成了什么（这一步非常重要，用于在 Action 日志里确认）
+          ls -la
           cd ..
           
           rm -rf temp_upstream
-
       - name: Push Changes
         run: |
           git add function/
