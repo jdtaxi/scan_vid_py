@@ -1,16 +1,21 @@
-import path from 'path';
-import os from 'os';
-import { fileURLToPath } from 'url';
-import { chromium } from 'playwright';
-import { CF_VID, CF_TOKEN } from './cf_db.js';
-// 使用 require 导入 .cjs 文件
-// 这样 Node.js 就不会报错说禁止 with 语句了
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+// 使用 CommonJS 语法替换 import
+const path = require('path');
+const os = require('os');
+const { chromium } = require('playwright');
 
-// 此时加载 dylib.js，它内部的 require('./dyland.js') 就能找到文件了
+// 导入你的数据库配置 (确保 cf_db.js 也是 module.exports 导出的)
+const { CF_VID, CF_TOKEN } = require('./cf_db.js');
+
+/**
+ * 在 CJS 环境下，直接 require 即可。
+ * Node.js 会根据同步脚本生成的 .js 文件进行加载。
+ * 由于 CJS 不是强制严格模式，混淆代码中的 'with' 语句将不会报错。
+ */
 const dylib = require('./function/dylib.js');
 const dylans = require('./function/dylans.js');
+
+// 如果你需要 __filename 或 __dirname，CJS 是原生支持的，不需要 fileURLToPath
+// console.log(__dirname);
 // --- 配置加载 ---
 const API_KEY = process.env.API_KEY || "leaflow";
 const TARGET_PATTERN = process.env.TARGET_PATTERN || "2PAAf74aG3D61qvfKUM5dxUssJQ9";
