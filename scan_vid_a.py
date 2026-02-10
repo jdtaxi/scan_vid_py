@@ -23,6 +23,7 @@ RUN_DURATION_MINUTES = int(os.environ.get("RUN_DURATION_MINUTES", 10))
 MAX_CONSECUTIVE_ERRORS = 10
 COPIES = int(os.environ.get("COPIES", 46))
 NUM_PARTS = int(os.environ.get("NUM_PARTS", 20))
+MAX_RETRY_ROUNDS = 3  # 失败重试次数上限
 # =========================================
 
 stats = {"success": 0, "hit": 0, "blocked": 0, "error": 0, 'total_scanned': 0}
@@ -66,7 +67,8 @@ def run_task():
 
     script_start_time = time.time()
     consecutive_errors = 0
-    failed_vids = []  # 用于存放需要重试的 vid
+    # 待处理队列，初始为全量，重试时仅保留失败部分
+    pending_vids = vender_ids
 
     with sync_playwright() as p:
         browser = p.chromium.launch(
@@ -93,15 +95,15 @@ def run_task():
 
         log("任务启动：已加载深度 Stealth 优化配置", "INFO")
 
-        def scan_vids(target_list, is_retry=False):
+        def scan_round(target_list, round_tag):
             nonlocal consecutive_errors
-            tag = "[重试]" if is_retry else ""
+            round_failed = []
             
             for vid in target_list:
                 stats['total_scanned'] += 1
                 if (time.time() - script_start_time) / 60 >= RUN_DURATION_MINUTES:
-                    log(f"达到时长上限，停止{tag}", "TIMER")
-                    return False # 结束整个函数
+                    log(f"达到时长上限，停止{round_tag}", "TIMER")
+                    return False, round_failed
 
                 page = context.new_page()
                 stealth_sync(page)
@@ -159,40 +161,50 @@ def run_task():
                         isv_url = res_json.get("result", {}).get("signStatus", {}).get("isvUrl", "")
                         if TARGET_PATTERN in isv_url:
                             token = re.search(r'token=([^&]+)', isv_url).group(1) if "token=" in isv_url else "N/A"
-                            log(f"{tag}{stats['total_scanned']}->🎯 命中 {vid} | Token: {token}", "SUCCESS")
+                            log(f"{round_tag}{stats['total_scanned']}->🎯 命中 {vid} | Token: {token}", "SUCCESS")
                             db_token.upload({"vid": vid, "token": token})
                         else:
-                            log(f"{tag}{stats['total_scanned']}->店铺 {vid} 正常", "INFO")
+                            log(f"{round_tag}{stats['total_scanned']}->店铺 {vid} 正常", "INFO")
                     else:
                         stats["error"] += 1
                         consecutive_errors += 1
-                        log(f"{tag}{stats['total_scanned']}->店铺 {vid} 异常 code {res_json.get('code')}", "WARN")
-                        if not is_retry: failed_vids.append(vid) # 仅在初次扫描时加入重试队列
+                        log(f"{round_tag}{stats['total_scanned']}->店铺 {vid} 异常 code {res_json.get('code') if res_json else 'None'}", "WARN")
+                        round_failed.append(vid)
                         cooldown_sleep(consecutive_errors)
-                        if consecutive_errors >= MAX_CONSECUTIVE_ERRORS: return False
+                        if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
+                            log(f"❌ 连续异常达上限，中断本轮", "ERROR")
+                            return False, round_failed
 
                 except Exception as e:
                     consecutive_errors += 1
                     stats["error"] += 1
-                    log(f"{tag}{stats['total_scanned']}->页面崩溃 {vid}: {e}", "WARN")
-                    if not is_retry: failed_vids.append(vid)
-                    if consecutive_errors >= MAX_CONSECUTIVE_ERRORS: return False
+                    log(f"{round_tag}{stats['total_scanned']}->页面崩溃 {vid}: {e}", "WARN")
+                    round_failed.append(vid)
+                    if consecutive_errors >= MAX_CONSECUTIVE_ERRORS: return False, round_failed
                     cooldown_sleep(consecutive_errors)
                 finally:
                     page.close()
                     time.sleep(random.uniform(4, 6))
-            return True
+            
+            return True, round_failed
 
-        # --- 执行初次扫描 ---
-        should_continue = scan_vids(vender_ids, is_retry=False)
+        # --- 核心循环重试逻辑 ---
+        for attempt in range(MAX_RETRY_ROUNDS + 1):
+            if not pending_vids:
+                break
+            
+            tag = "[初次]" if attempt == 0 else f"[重试{attempt}]"
+            if attempt > 0:
+                log(f"🔄 开始 {tag} 扫描，剩余失败条数: {len(pending_vids)}", "STATS")
+                time.sleep(5) # 轮次切换稍作休息
 
-        # --- 执行重试扫描 (如果初次扫描因风控中断或有失败记录) ---
-        if failed_vids and should_continue:
-            log(f"🔄 开始重试第初次扫描失败的 {len(failed_vids)} 条数据...", "STATS")
-            time.sleep(10) # 重试前多休息一会
-            scan_vids(failed_vids, is_retry=True)
+            is_ok, failed_list = scan_round(pending_vids, tag)
+            pending_vids = failed_list # 下一轮只查这一轮失败的
+            
+            if not is_ok: # 如果因为时长或连续错误中断，跳出大循环
+                break
 
-        log("任务结束，清理完成", "INFO")
+        log(f"📊 任务结束 | 总量: {len(vender_ids)} | 成功: {stats['success']} | 最终失败: {len(pending_vids)}", "STATS")
         browser.close()
 
 if __name__ == "__main__":
