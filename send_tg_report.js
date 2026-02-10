@@ -1,5 +1,5 @@
-import { CF_TOKEN } from './cf_db.js'; // 假设上面的类保存在 cf_db.js
 
+const { CF_TOKEN } = require('./cf_db.js');
 /**
  * 发送 Telegram 消息
  */
