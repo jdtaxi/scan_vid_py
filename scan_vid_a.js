@@ -42,7 +42,7 @@ async function cooldownSleep(streak) {
   let t = streak === 1 ? Math.random() * 2 + 4 : 
           streak === 2 ? Math.random() * 4 + 8 : 
           Math.random() * 4 + 14;
-  log(`风控冷却 sleep ${t.toFixed(1)}s`, "RISK");
+  //log(`风控冷却 sleep ${t.toFixed(1)}s`, "RISK");
   await sleep(t * 1000);
 }
 
