@@ -3,8 +3,8 @@ import os from 'os';
 import { fileURLToPath } from 'url';
 import { chromium } from 'playwright';
 import { CF_VID, CF_TOKEN } from './cf_db.js';
-import dylib from './function/dylib';
-import dylans from './function/dylans';
+import dylib from './function/dylib.js'; 
+import dylans from './function/dylans.js';
 // --- 配置加载 ---
 const API_KEY = process.env.API_KEY || "leaflow";
 const TARGET_PATTERN = process.env.TARGET_PATTERN || "2PAAf74aG3D61qvfKUM5dxUssJQ9";
