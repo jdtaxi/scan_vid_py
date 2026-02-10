@@ -1,18 +1,15 @@
 /**
- * 基础请求客户端
+ * 基础请求客户端 (CommonJS 风格)
  */
 class BaseClient {
   constructor(baseUrl, apiKey) {
-    this.baseUrl = baseUrl.replace(/\/+$/, '');
+    this.baseUrl = (baseUrl || '').replace(/\/+$/, '');
     this.headers = {
-      'Authorization': apiKey.startsWith('Bearer ') ? apiKey : `Bearer ${apiKey}`,
+      'Authorization': (apiKey || '').startsWith('Bearer ') ? apiKey : `Bearer ${apiKey}`,
       'Content-Type': 'application/json'
     };
   }
 
-  /**
-   * 核心请求封装，包含超时处理
-   */
   async request(endpoint, options = {}) {
     const url = endpoint.startsWith('http') ? endpoint : `${this.baseUrl}${endpoint}`;
     const controller = new AbortController();
@@ -37,14 +34,13 @@ class BaseClient {
 /**
  * 视频 ID 数据切片处理类
  */
-export class CF_VID extends BaseClient {
+class CF_VID extends BaseClient {
   async getDataSlice(copy, copies) {
     try {
       const res = await this.request('/get', {
         method: 'POST',
         body: JSON.stringify({ copy, copies })
       });
-      
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return await res.json();
     } catch (e) {
@@ -55,29 +51,20 @@ export class CF_VID extends BaseClient {
 }
 
 /**
- * Token 数据上传与查询类（支持北京时区）
+ * Token 数据上传与查询类
  */
-export class CF_TOKEN extends BaseClient {
-  /**
-   * 获取北京时间的格式化字符串 (MM_DD)
-   * @param {number} offsetDays 相对今天的偏移天数
-   */
+class CF_TOKEN extends BaseClient {
   _getBjDateStr(offsetDays = 0) {
     const now = new Date();
     if (offsetDays !== 0) now.setDate(now.getDate() + offsetDays);
-    
-    // 强制转换为北京时间并提取月日
     const formatter = new Intl.DateTimeFormat('en-GB', {
       month: '2-digit',
       day: '2-digit',
       timeZone: 'Asia/Shanghai'
     });
-    
-    // 格式化结果通常为 "DD/MM"，这里通过 parts 确保顺序正确
     const parts = formatter.formatToParts(now);
     const month = parts.find(p => p.type === 'month').value;
     const day = parts.find(p => p.type === 'day').value;
-    
     return `${month}_${day}`;
   }
 
@@ -94,21 +81,14 @@ export class CF_TOKEN extends BaseClient {
     }
   }
 
-  async getTodayData() {
-    return this._fetch(this._getBjDateStr(0));
-  }
-
-  async getYesterdayData() {
-    return this._fetch(this._getBjDateStr(-1));
-  }
+  async getTodayData() { return this._fetch(this._getBjDateStr(0)); }
+  async getYesterdayData() { return this._fetch(this._getBjDateStr(-1)); }
 
   async _fetch(dateStr) {
     try {
       console.log(`🔍 正在查询北京时间 ${dateStr} 的数据...`);
-      // 构建带 query 字典的 URL
       const url = `/get?${new URLSearchParams({ date: dateStr })}`;
       const res = await this.request(url, { method: 'GET', timeout: 10000 });
-      
       return res.ok ? await res.json() : [];
     } catch (e) {
       console.error(`Get Error: ${e.message}`);
@@ -116,8 +96,13 @@ export class CF_TOKEN extends BaseClient {
     }
   }
 }
-// cf_db.js
+
+// 最终导出 (CommonJS)
 module.exports = {
-  CF_VID: process.env.WORKER_VID_URL || '默认值',
-  CF_TOKEN: process.env.WORKER_TOKEN_URL || '默认值'
+  CF_VID,
+  CF_TOKEN,
+  // 环境变量直接导出供主脚本初始化类使用
+  URL_VID: process.env.WORKER_VID_URL,
+  URL_TOKEN: process.env.WORKER_TOKEN_URL,
+  API_KEY: process.env.API_KEY
 };
