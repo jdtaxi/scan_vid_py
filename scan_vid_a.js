@@ -8,7 +8,7 @@ import { CF_VID, CF_TOKEN } from './cf_db.js';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
-// 导入 .cjs 文件（绕过 ESM 的 strict mode/with 限制）
+// 此时加载 dylib.js，它内部的 require('./dyland.js') 就能找到文件了
 const dylib = require('./function/dylib.js');
 const dylans = require('./function/dylans.js');
 // --- 配置加载 ---
