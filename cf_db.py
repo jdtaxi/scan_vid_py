@@ -25,6 +25,7 @@ class CF_TOKEN:
         self.session = requests.Session()
         auth_val = f"Bearer {api_key}" if not api_key.startswith("Bearer ") else api_key
         self.session.headers.update({"Authorization": auth_val, "Content-Type": "application/json"})
+        self.beijing_tz = timezone(timedelta(hours=8))
 
     def upload(self, data: dict):
         # 注意：这里请根据你 Worker 的逻辑改为 /add 或 /update
