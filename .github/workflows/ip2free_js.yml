@@ -4,8 +4,7 @@ on:
   repository_dispatch: # 支持通过 API 触发
     types: [run_ip2free]
   workflow_dispatch:    # 支持手动点击运行
-  schedule:
-    - cron: '0 1 * * *' # 可选：建议添加定时任务，每天凌晨 9 点左右（北京时间）运行一次
+
 
 jobs:
   build:
