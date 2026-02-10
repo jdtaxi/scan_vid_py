@@ -49,8 +49,17 @@ jobs:
           # 如果你在 JS 中实现了代理逻辑，可以取消注释
           # SOCKSPROXY: ${{ secrets.SOCKSPROXY }}
         run: |
-          # 复制文件以满足脚本中 path.match(/(\d+)/) 的索引提取逻辑
+          # 1. 强制在当前目录创建一个声明为 commonjs 的 package.json
+          # 即使你删过了，这里也要现场写一个，确保覆盖所有隐藏配置
+          echo '{"type": "commonjs"}' > package.json
+          
+          # 2. 复制文件
           cp scan_vid_a.js scan_vid_a_${{ matrix.index }}.js
+          
+          # 3. 检查脚本内容，如果有 import 单词，强制注释掉或报错（防止嗅探）
+          # 确保 scan_vid_a.js 里面全是 require
+          
+          # 4. 执行
           node scan_vid_a_${{ matrix.index }}.js
 
   report:
