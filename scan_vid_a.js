@@ -204,7 +204,7 @@ async function runTask() {
         const config = {
           "appId": "ea491",
           "functionId": "whx_getShopHomeActivityInfo",
-          "body": { "venderId":venderId, "source": "m-shop" },
+          "body": { "venderId":vid, "source": "m-shop" },
           "appid": "shop_m_jd_com",
           "clientVersion": "11.0.0",
           "client": "ios",
