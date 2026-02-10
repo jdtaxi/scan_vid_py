@@ -2,40 +2,54 @@ name: Sync 6dy
 
 on:
   schedule:
-    - cron: '0 0 * * *' # 每天 UTC 时间 00:00 运行
-  workflow_dispatch:
+    - cron: '0 0 * * *' # 每天北京时间早上 8 点运行
+  workflow_dispatch:      # 支持手动触发
 
 jobs:
   sync:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write     # 赋予写权限以允许 push
+      
     steps:
-      - name: Checkout Code
+      - name: Checkout My Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # 获取所有历史
+          fetch-depth: 1
 
       - name: Configure Git
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Sync Subtree
+      - name: Sync Function Folder
         run: |
-          git remote add upstream https://github.com/6dylan6/jdpro.git || true
-          git fetch upstream main
+          # 1. 克隆上游仓库到临时目录 (只拉取最近一次提交，速度极快)
+          git clone --depth 1 https://github.com/6dylan6/jdpro.git temp_upstream
           
-          # 核心修复逻辑
-          if git log -1 --function > /dev/null 2>&1; then
-            echo "Subtree already exists, pulling..."
-            git subtree pull --prefix=function upstream main --squash -m "Sync function folder from upstream"
-          else
-            echo "Subtree not found, adding..."
-            # 如果文件夹存在但未关联，先移除
-            rm -rf function
-            git commit -am "Remove old function folder for subtree" || true
-            git subtree add --prefix=function upstream main --squash -m "Add subtree function folder"
-          fi
+          # 2. 确保本地目标目录存在
+          mkdir -p function
+          
+          # 3. 同步内容：将临时目录里的 function 文件夹内容拷贝过来
+          # 使用 -f 强制覆盖，使用 -n 不覆盖已存在的（根据需求选，这里建议覆盖以保持更新）
+          cp -rf temp_upstream/function/* ./function/
+          
+          # 4. 关键：为 Node.js ESM 模式补全后缀名
+          # 如果同步过来的文件叫 dylib（没后缀），Node 跑不起来，所以复制一份加 .js
+          cd function
+          [ -f dylib ] && cp dylib dylib.js || echo "dylib not found"
+          [ -f dylans ] && cp dylans dylans.js || echo "dylans not found"
+          cd ..
+          
+          # 5. 删除临时克隆的仓库
+          rm -rf temp_upstream
 
       - name: Push Changes
         run: |
-          git push
+          git add function/
+          # 检查是否有内容变更，有则提交，无则跳过（防止报错）
+          if git diff --staged --quiet; then
+            echo "No changes detected, skipping commit."
+          else
+            git commit -m "Automated Sync: update function folder and add .js suffixes"
+            git push origin main
