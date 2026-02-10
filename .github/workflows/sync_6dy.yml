@@ -53,7 +53,12 @@ jobs:
           elif [ -f dylans.js ]; then
             mv dylans.js dylans.cjs
           fi
-          
+          # 处理 dyland
+          if [ -f dyland ]; then
+            mv dylans dyland.cjs
+          elif [ -f dyland.js ]; then
+            mv dylans.js dyland.cjs
+          fi
           # 5. 调试查看（请在 Action 日志中确认此输出）
           echo "==== 最终生成文件列表 ===="
           ls -F
