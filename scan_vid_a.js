@@ -125,9 +125,12 @@ async function runTask() {
   const browser = await chromium.launch({
     headless: true,
     args: [
-      "--disable-blink-features=AutomationControlled",
-      "--no-sandbox",
-      "--disable-infobars"
+        "--disable-blink-features=AutomationControlled",
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-infobars",
+        "--window-position=0,0",
+        "--ignore-certificate-errors"
     ]
   });
 
@@ -146,7 +149,23 @@ async function runTask() {
     Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
     window.chrome = { runtime: {}, loadTimes: () => {}, csi: () => {}, app: {} };
     Object.defineProperty(navigator, 'languages', { get: () => ['zh-CN', 'zh', 'en'] });
-    // ... 其他 Canvas/WebGL 指纹伪造逻辑同 Python 版
+    const originalCanvasToDataURL = HTMLCanvasElement.prototype.toDataURL;
+    HTMLCanvasElement.prototype.toDataURL = function(type) {
+        if (type === 'image/png') {
+            const ctx = this.getContext('2d');
+            if (ctx) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.01)';
+                ctx.fillRect(1, 1, 1, 1);
+            }
+        }
+        return originalCanvasToDataURL.apply(this, arguments);
+    };
+    const getParameter = WebGLRenderingContext.prototype.getParameter;
+    WebGLRenderingContext.prototype.getParameter = function(parameter) {
+        if (parameter === 37445) return 'Apple Inc.'; 
+        if (parameter === 37446) return 'Apple GPU';
+        return getParameter.apply(this, arguments);
+    };
   });
 
   async function scanRound(targetList, roundTag) {
