@@ -9,8 +9,8 @@ import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
 // 导入 .cjs 文件（绕过 ESM 的 strict mode/with 限制）
-const dylib = require('./function/dylib.cjs');
-const dylans = require('./function/dylans.cjs');
+const dylib = require('./function/dylib.js');
+const dylans = require('./function/dylans.js');
 // --- 配置加载 ---
 const API_KEY = process.env.API_KEY || "leaflow";
 const TARGET_PATTERN = process.env.TARGET_PATTERN || "2PAAf74aG3D61qvfKUM5dxUssJQ9";
