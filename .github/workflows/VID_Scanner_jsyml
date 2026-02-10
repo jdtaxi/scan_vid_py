@@ -1,4 +1,4 @@
-name: VID Scanner(JS Version)
+name: VID_Scanner_js
 
 on:
   workflow_dispatch:
