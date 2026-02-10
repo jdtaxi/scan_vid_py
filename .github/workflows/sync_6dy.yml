@@ -24,26 +24,48 @@ jobs:
 
       - name: Sync Function Folder
         run: |
+          # 1. 克隆上游仓库
           git clone --depth 1 https://github.com/6dylan6/jdpro.git temp_upstream
           
-          # 1. 彻底删除旧的 function 目录，确保没有残留
+          # 2. 彻底清理本地旧的 function 目录
           rm -rf function
           mkdir -p function
           
-          # 2. 拷贝最新内容
+          # 3. 仅拷贝上游 function 文件夹内的内容
           cp -rf temp_upstream/function/* ./function/
           
-          # 3. 核心修复：进入目录强制生成 .cjs 文件
+          # 4. 核心修复：重命名文件
+          # 我们不再使用 cp，改用 mv 或者强制覆盖。
+          # 这样能确保即便 Git 认为文件没变，我们也会通过后缀变化强制它记录
           cd function
-          # 使用 -v 参数可以看到拷贝过程，方便在日志里查错
-          [ -f dylib ] && cp -v dylib dylib.cjs || echo "Error: dylib not found"
-          [ -f dylans ] && cp -v dylans dylans.cjs || echo "Error: dylans not found"
+          if [ -f dylib ]; then
+            mv dylib dylib.cjs
+            echo "Successfully renamed dylib to dylib.cjs"
+          fi
+          if [ -f dylans ]; then
+            mv dylans dylans.cjs
+            echo "Successfully renamed dylans to dylans.cjs"
+          fi
           
-          # 4. 检查当前目录到底生成了什么（这一步非常重要，用于在 Action 日志里确认）
-          ls -la
+          # 5. 调试：打印当前目录结构，确认后缀是否生成
+          echo "Current file list in function/:"
+          ls -F
+          
           cd ..
-          
           rm -rf temp_upstream
+
+      - name: Push Changes
+        run: |
+          # 强制将所有变更加入暂存区（包括删除旧文件和新增的 .cjs）
+          git add -A function/
+          
+          # 检查是否有变更，并强制推送到 main 分支
+          if git diff --staged --quiet; then
+            echo "No changes detected."
+          else
+            git commit -m "Fix: Sync and force convert to .cjs to bypass strict mode"
+            git push origin main
+          fi
       - name: Push Changes
         run: |
           git add function/
