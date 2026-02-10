@@ -1,5 +1,5 @@
-import os
-import path
+import path from 'path';
+import os from 'os';
 import { fileURLToPath } from 'url';
 import { chromium } from 'playwright';
 import { CF_VID, CF_TOKEN } from './cf_db.js';
