@@ -17,7 +17,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20' # 使用长久支持的 Node 20
-          cache: 'npm'       # 开启 npm 缓存加速
 
       - name: Install Dependencies
         # 如果你没有提交 package.json，可以直接在这里安装必要依赖
