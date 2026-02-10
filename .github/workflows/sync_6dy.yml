@@ -24,22 +24,16 @@ jobs:
 
       - name: Sync Function Folder
         run: |
-          # 1. 克隆上游仓库到临时目录
           git clone --depth 1 https://github.com/6dylan6/jdpro.git temp_upstream
-          
-          # 2. 确保本地目标目录存在
           mkdir -p function
-          
-          # 3. 同步内容
           cp -rf temp_upstream/function/* ./function/
           
-          # 4. 补全 Node.js 所需的后缀名
+          # 关键修改：改用 .cjs 后缀
           cd function
-          [ -f dylib ] && cp dylib dylib.js || echo "dylib not found"
-          [ -f dylans ] && cp dylans dylans.js || echo "dylans not found"
+          [ -f dylib ] && cp dylib dylib.cjs || echo "dylib not found"
+          [ -f dylans ] && cp dylans dylans.cjs || echo "dylans not found"
           cd ..
           
-          # 5. 清理
           rm -rf temp_upstream
 
       - name: Push Changes
