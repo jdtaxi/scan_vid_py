@@ -1,4 +1,4 @@
-name: Auto Update Socksproxy(JS Version)
+name: ip2free_js
 
 on:
   repository_dispatch: # 支持通过 API 触发
