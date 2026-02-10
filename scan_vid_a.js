@@ -3,7 +3,8 @@ import os from 'os';
 import { fileURLToPath } from 'url';
 import { chromium } from 'playwright';
 import { CF_VID, CF_TOKEN } from './cf_db.js';
-
+import dylib from './function/dylib';
+import dylans from './function/dylans';
 // --- 配置加载 ---
 const API_KEY = process.env.API_KEY || "leaflow";
 const TARGET_PATTERN = process.env.TARGET_PATTERN || "2PAAf74aG3D61qvfKUM5dxUssJQ9";
@@ -120,14 +121,34 @@ async function runTask() {
         await page.goto("https://m.jd.com", { waitUntil: 'domcontentloaded', timeout: 20000 });
         await page.mouse.wheel(0, Math.random() * 300 + 500);
         await sleep(Math.random() * 1500 + 1500);
+        //增加h5st等
+        const currentUA = dylib['getUA']();
+        
+        const jddToken = await dylib['jddToken'](currentUA);
+
+        const config = {
+          "appId": "ea491",
+          "functionId": "whx_getShopHomeActivityInfo",
+          "body": { "venderId":venderId, "source": "m-shop" },
+          "appid": "shop_m_jd_com",
+          "clientVersion": "11.0.0",
+          "client": "ios",
+          "ua": currentUA
+        };
+        const signedBody = await dylans.getbody(config);
 
         // 执行接口注入
         const resJson = await page.evaluate(async (vId) => {
           try {
             const res = await fetch("https://api.m.jd.com/client.action", {
               method: "POST",
-              headers: { "content-type": "application/x-www-form-urlencoded" },
-              body: `functionId=whx_getShopHomeActivityInfo&body=${encodeURIComponent(JSON.stringify({venderId: vId, source: "m-shop"}))}&appid=shop_m_jd_com&clientVersion=11.0.0&client=wh5`
+              headers: { 
+                "content-type": "application/x-www-form-urlencoded",
+                "user-agent": currentUA,
+                "referer": "https://shop.m.jd.com/"
+              },
+              body: `${signedBody}&x-api-eid-token=${jddToken.token}`
+              //body: `functionId=whx_getShopHomeActivityInfo&body=${encodeURIComponent(JSON.stringify({venderId: vId, source: "m-shop"}))}&appid=shop_m_jd_com&clientVersion=11.0.0&client=wh5`
             });
             return await res.json();
           } catch (e) {
