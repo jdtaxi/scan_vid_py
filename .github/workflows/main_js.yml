@@ -52,8 +52,8 @@ jobs:
           # SOCKSPROXY: ${{ secrets.SOCKSPROXY }}
         run: |
           # 复制文件以满足脚本中 path.match(/(\d+)/) 的索引提取逻辑
-          cp scanner.js scanner_${{ matrix.index }}.js
-          node scanner_${{ matrix.index }}.js
+          cp scan_vid_a.js scan_vid_a_${{ matrix.index }}.js
+          node scan_vid_a_${{ matrix.index }}.js
 
   report:
     runs-on: ubuntu-latest
