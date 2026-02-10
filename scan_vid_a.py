@@ -176,7 +176,7 @@ def run_task():
                         if TARGET_PATTERN in isv_url:
                             token = re.search(r'token=([^&]+)', isv_url).group(1) if "token=" in isv_url else "N/A"
                             log(f"{round_tag}{stats['total_scanned']}->🎯 命中 {vid} | Token: {token}", "SUCCESS")
-                            db_token.upload({"vid": vid, "token": token})
+                            db_token.upload({"vender": vid, "token": token})
                         else:
                             log(f"{round_tag}{stats['total_scanned']}->店铺 {vid} 正常", "INFO")
                     else:
