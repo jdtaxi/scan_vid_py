@@ -33,7 +33,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          npm install playwright axios
+          npm install playwright axios crypto-js
           npx playwright install chromium --with-deps
 
       - name: Run Scanner
