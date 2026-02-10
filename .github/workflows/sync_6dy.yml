@@ -1,0 +1,33 @@
+name: Sync 6dy
+
+on:
+  schedule:
+    - cron: '30 23 * * *' # 每天北京时间早上 8 点运行 (UTC时间 0点)
+  workflow_dispatch:      # 支持手动触发
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 获取所有历史记录，以便进行 subtree 操作
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Sync Subtree
+        run: |
+          # 添加上游仓库为远程仓库
+          git remote add -f upstream https://github.com/6dylan6/jdpro.git
+          
+          # 更新 subtree
+          # --prefix 指定你本地存放同步文件夹的路径
+          git subtree pull --prefix=function upstream main --squash -m "Sync function folder from upstream"
+
+      - name: Push Changes
+        run: |
+          git push
