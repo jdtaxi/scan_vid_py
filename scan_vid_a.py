@@ -3,6 +3,7 @@ import sys
 import time
 import json
 import random
+import requests
 import re
 from datetime import datetime, timedelta, timezone
 from playwright.sync_api import sync_playwright
