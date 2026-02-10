@@ -50,7 +50,7 @@ def cooldown_sleep(streak):
         t = random.uniform(8, 12)
     else:
         t = random.uniform(14, 18)
-    log(f"风控冷却 sleep {t:.1f}s", "RISK")
+    #log(f"风控冷却 sleep {t:.1f}s", "RISK")
     time.sleep(t)
 
 def run_task():       
