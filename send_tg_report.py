@@ -2,7 +2,7 @@ import os
 import requests
 from datetime import datetime, timedelta, timezone
 # 假设上面的 DataWorkerClient 代码保存在 cf_db.py 中
-from cf_db import DataWorkerClient 
+from cf_db import CF_TOKEN 
 
 def send_tg_msg(text):
     token = os.environ.get("TG_BOT_TOKEN")
@@ -28,7 +28,7 @@ def run_report():
     API_KEY = os.environ.get("API_KEY", "leaflow")
     WORKER_TOKEN_URL = os.environ.get("WORKER_TOKEN_URL", "https://token.zshyz.us.ci")
     
-    client = DataWorkerClient(WORKER_TOKEN_URL, API_KEY)
+    client = CF_TOKEN(WORKER_TOKEN_URL, API_KEY)
     
     # 1. 获取数据
     res_yesterday = client.get_yesterday_data()  # 昨天的
