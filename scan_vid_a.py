@@ -180,7 +180,7 @@ def run_task():
                     cooldown_sleep(consecutive_errors)
                 finally:
                     page.close()
-                    time.sleep(random.uniform(4, 7))
+                    time.sleep(random.uniform(4, 6))
             return True
 
         # --- 执行初次扫描 ---
