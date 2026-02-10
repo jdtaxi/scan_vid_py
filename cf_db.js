@@ -116,3 +116,8 @@ export class CF_TOKEN extends BaseClient {
     }
   }
 }
+// cf_db.js
+module.exports = {
+  CF_VID: process.env.WORKER_VID_URL || '默认值',
+  CF_TOKEN: process.env.WORKER_TOKEN_URL || '默认值'
+};
