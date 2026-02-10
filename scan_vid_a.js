@@ -46,7 +46,51 @@ async function cooldownSleep(streak) {
   //log(`风控冷却 sleep ${t.toFixed(1)}s`, "RISK");
   await sleep(t * 1000);
 }
+/**
+ * 随机生成京东 H5 请求上下文参数字符串
+ */
+function generateJdContextString() {
+    // 1. 生成 area (省_市_县_镇)
+    // 格式通常为 1-30 之间的数字
+    const generateArea = () => {
+        const p = Math.floor(Math.random() * 30) + 1; // 省
+        const c = Math.floor(Math.random() * 100) + 1; // 市
+        const d = Math.floor(Math.random() * 3000) + 1; // 县
+        const t = 0; // 镇，通常默认为 0
+        return `${p}_${c}_${d}_${t}`;
+    };
 
+    // 2. 生成 screen (屏幕分辨率)
+    // 模拟常见移动端分辨率
+    const generateScreen = () => {
+        const widths = [375, 390, 414, 430, 360];
+        const heightMultiplier = [2.16, 2.33, 2.17, 2.41];
+        const w = widths[Math.floor(Math.random() * widths.length)];
+        const h = Math.floor(w * heightMultiplier[Math.floor(Math.random() * heightMultiplier.length)]);
+        return `${w}*${h}`;
+    };
+
+    // 3. 生成 uuid
+    // 逻辑：当前毫秒时间戳 + 10位左右的随机数字
+    const generateUuid = () => {
+        const timestamp = Date.now().toString(); // 13位
+        const randomPart = Math.random().toString().slice(2, 12); // 10位
+        return timestamp + randomPart;
+    };
+
+    // 参数组合
+    const params = {
+        area: generateArea(),
+        screen: generateScreen(),
+        uuid: generateUuid(),
+        xAPIClientLanguage: "zh_CN" // 固定值
+    };
+
+    // 转换为 URL 查询字符串格式
+    return Object.keys(params)
+        .map(key => `${key}=${params[key]}`)
+        .join('&');
+}
 // --- 核心逻辑 ---
 async function runTask() {
   const dbVid = new CF_VID(WORKER_VID_URL, API_KEY);
@@ -147,7 +191,8 @@ async function runTask() {
                 "user-agent": currentUA,
                 "referer": "https://shop.m.jd.com/"
               },
-              body: `${signedBody}&x-api-eid-token=${jddToken.token}`
+              body: `${signedBody}&x-api-eid-token=${jddToken.token}&${generateJdContextString()}`
+              //functionId=whx_getShopHomeActivityInfo&body=%7B%22venderId%22%3A%2217868%22%2C%22source%22%3A%22m-shop%22%7D&t=1770723924622&appid=shop_m_jd_com&clientVersion=11.0.0&client=wh5&area=1_72_2799_0&screen=636*1408&uuid=17707234355951389497624&xAPIClientLanguage=zh_CN&h5st=20260210194527631%3B9z6gtm3itdwh36h5%3Bea491%3Btk03w82e21beb18nCPX67Xd8b9oUBFkkvL54f4PNvko4WcNGCf8hix-i6FLB3p8ZFtGkZuEZthqq_vM95DGyoMbw_hCQ%3B66557b3bf07520792b9114884ee00dc6d834716688b0f611cffc4a37e9bbf495%3B5.2%3B1770723924631%3BfZRCXZPU5IuV5EaIt8rV0QqIr5KT-h-T-h6I-hfZXx-Vvh-T-prJ_YfZB5hW-NbUoZOVsdeIwJLI7I_VodLV98eUsV_U9g_JsFOI7E_I-h-T-h6Q1E7J8E6ZBh-f1ZvV_ULU98OI7UeU7AOI8MeIoVOVrJrUwd_J9M_I8QrU_YfZnZvFAI6GAU7ZBh-f1ZPV0ZfZnZfUsY7ZBh-f1ZPTzZ_WsJqK8wLH7kMU5YfZnZ-E-hfZXx-ZK4NVt9tVAkNPvV6PLYfZnZPGyQ7GAY6ZBh-f1Z-VupLHKYfZnZ-IxYfZB5hWkgfZXZvGbYfZnZvVwN6J-hfZBh-f1ZeZnZPVwN6J-hfZBh-f1ROVB5_ZxdOE-YfZBhfZXxfT0h-T-ZOVsY7ZBhfZB5hW-1bOsZqM4M6Vu8OI-h-T-trG9oLJvYfZBhfZXxfVB5_ZpN6J-hfZBh-f1heZnZvUsY7ZBhfZB5hWrh-T-JOE-YfZBhfZXxfVB5_ZsN6J-hfZBh-f1heZnZfUsY7ZBhfZB5hWxJeZnZvVsY7ZBhfZB5hW-N_WwpfV-h-T-dOE-YfZBhfZXxfVB5_Z2E6ZBhfZB5hWsh-T-VaG-hfZBh-f1heZnZfG-hfZBh-f1heZnZfIqYfZBhfZX1aZnZfIzMbEpM7ZBh-f1tqDB5_Zxg6ZBh-f1Z-OpNORPstW9wLHsYdZshvFsAKITgvTxp-UBRLHyYaIzcdZmBKEz8bO-h-T-dLEuYfZB5xD%3Bc8ef6c97feaf50ee191927adb1bd2f5a9fb16f331807f59fd9c0ca5b3f0240f7%3BgRaW989Gy8bE_oLE7w-Gy8rFvM7MtoLI4wrJ1R6G88bG_wPD9k7J1RLHxgKJ&x-api-eid-token=jdd03LECKTEBYVODALUJUK5RJT7DIRBNR2KLS27VGCACIO6LWUQJ4A5GB4ZR5LUTPIFDA45QLXK5V4VDW4W2AKJJKMF6JSQAAAAM4I5PNESYAAAAACC3ODBGUPTN6EYX
               //body: `functionId=whx_getShopHomeActivityInfo&body=${encodeURIComponent(JSON.stringify({venderId: vId, source: "m-shop"}))}&appid=shop_m_jd_com&clientVersion=11.0.0&client=wh5`
             });
             return await res.json();
