@@ -3,8 +3,10 @@ import os from 'os';
 import { fileURLToPath } from 'url';
 import { chromium } from 'playwright';
 import { CF_VID, CF_TOKEN } from './cf_db.js';
-import dylib from './function/dylib.js'; 
-import dylans from './function/dylans.js';
+// 使用 require 导入 .cjs 文件
+// 这样 Node.js 就不会报错说禁止 with 语句了
+const dylib = require('./function/dylib.cjs');
+const dylans = require('./function/dylans.cjs');
 // --- 配置加载 ---
 const API_KEY = process.env.API_KEY || "leaflow";
 const TARGET_PATTERN = process.env.TARGET_PATTERN || "2PAAf74aG3D61qvfKUM5dxUssJQ9";
