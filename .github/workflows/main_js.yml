@@ -73,4 +73,4 @@ jobs:
           WORKER_TOKEN_URL: ${{ vars.WORKER_TOKEN_URL }}
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
-        run: node report.js
+        run: node send_tg_report.js
