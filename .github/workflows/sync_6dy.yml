@@ -1,5 +1,4 @@
 name: Sync 6dy
-
 on:
   schedule:
     - cron: '0 0 * * *' 
@@ -27,7 +26,7 @@ jobs:
           # 1. 克隆上游仓库
           git clone --depth 1 https://github.com/6dylan6/jdpro.git temp_upstream
           
-          # 2. 彻底从 Git 记录中移除旧目录，防止后缀冲突
+          # 2. 彻底从 Git 记录中移除旧目录，防止索引冲突
           if [ -d "function" ]; then
             git rm -rf function/
             git commit -m "Internal: cleanup for fresh sync" || true
@@ -37,8 +36,8 @@ jobs:
           mkdir -p function
           cp -rf temp_upstream/function/* ./function/
           
-          # 4. 关键：确保所有核心文件都有 .js 后缀
-          # 这样能满足 dylib 内部 require('./dyland.js') 的引用需求
+          # 4. 关键：确保所有核心依赖文件都有 .js 后缀
+          # 这样能满足 dylib.js 内部 require('./dyland.js') 的引用需求
           cd function
           for file in dylib dylans dyland; do
             if [ -f "$file" ]; then
@@ -47,8 +46,8 @@ jobs:
             fi
           done
           
-          # 5. 打印调试信息，确认文件存在
-          echo "==== Function Folder Content ===="
+          # 打印调试信息确认
+          echo "==== Final File List in Function/ ===="
           ls -F
           cd ..
           
@@ -57,8 +56,10 @@ jobs:
       - name: Push Changes
         run: |
           git add function/
+          # 检查是否有变更。--quiet 如果没有差异则返回 0
           if git diff --staged --quiet; then
-            echo "No changes to commit"
+            echo "No changes detected, skipping commit."
           else
             git commit -m "Fix: Sync function folder and maintain .js suffixes for internal require"
             git push origin main
+          fi
