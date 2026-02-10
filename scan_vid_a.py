@@ -56,6 +56,12 @@ def run_task():
     db_vid = CF_VID(WORKER_VID_URL, API_KEY)
     db_token = CF_TOKEN(WORKER_TOKEN_URL, API_KEY)
 
+    # 1. 查询 IP
+    try:
+        current_ip = requests.get('https://api.ipify.org', timeout=10).text
+        log(f"🌐 任务启动 IP: {current_ip}", "INFO")
+    except: pass
+
     bj_now = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=8)))
     
     # 核心：计算半小时分片
