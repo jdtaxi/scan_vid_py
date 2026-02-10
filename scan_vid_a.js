@@ -5,6 +5,10 @@ import { chromium } from 'playwright';
 import { CF_VID, CF_TOKEN } from './cf_db.js';
 // 使用 require 导入 .cjs 文件
 // 这样 Node.js 就不会报错说禁止 with 语句了
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+// 导入 .cjs 文件（绕过 ESM 的 strict mode/with 限制）
 const dylib = require('./function/dylib.cjs');
 const dylans = require('./function/dylans.cjs');
 // --- 配置加载 ---
