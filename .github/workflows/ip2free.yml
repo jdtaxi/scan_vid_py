@@ -1,4 +1,4 @@
-name: Auto Update Socksproxy Secret
+name: ip2free_py
 
 on:
   repository_dispatch: # API 触发：通过 POST 请求到 GitHub API 触发
