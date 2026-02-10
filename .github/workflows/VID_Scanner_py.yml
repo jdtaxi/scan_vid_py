@@ -1,4 +1,4 @@
-name: VID Scanner
+name: VID_Scanner_py
 
 on:
   workflow_dispatch: # 手动触发：在 GitHub Actions 页面点击 "Run workflow"
