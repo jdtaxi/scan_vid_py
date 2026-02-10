@@ -15,66 +15,50 @@ jobs:
       - name: Checkout My Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # 拉取所有历史以确保 git 操作正常
+          fetch-depth: 0
 
       - name: Configure Git
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Force Clean and Sync
+      - name: Force Sync and Repair
         run: |
-          # 1. 克隆上游仓库到临时目录
+          # 1. 克隆上游仓库
           git clone --depth 1 https://github.com/6dylan6/jdpro.git temp_upstream
           
-          # 2. 从 Git 索引中强制删除旧的 function 目录（如果存在）
-          # 这一步是关键：让 Git 彻底忘记之前的所有 .js 或无后缀文件
+          # 2. 彻底从 Git 记录中移除旧目录，防止后缀冲突
           if [ -d "function" ]; then
             git rm -rf function/
-            git commit -m "Internal: cleanup function for re-sync" || true
+            git commit -m "Internal: cleanup for fresh sync" || true
           fi
           
-          # 3. 重新创建目录并拷贝内容
+          # 3. 创建新目录并拷贝
           mkdir -p function
           cp -rf temp_upstream/function/* ./function/
           
-          # 4. 强制转换后缀名为 .cjs
+          # 4. 关键：确保所有核心文件都有 .js 后缀
+          # 这样能满足 dylib 内部 require('./dyland.js') 的引用需求
           cd function
-          # 处理 dylib
-          if [ -f dylib ]; then
-            mv dylib dylib.cjs
-          elif [ -f dylib.js ]; then
-            mv dylib.js dylib.cjs
-          fi
+          for file in dylib dylans dyland; do
+            if [ -f "$file" ]; then
+              cp "$file" "$file.js"
+              echo "Created $file.js from $file"
+            fi
+          done
           
-          # 处理 dylans
-          if [ -f dylans ]; then
-            mv dylans dylans.cjs
-          elif [ -f dylans.js ]; then
-            mv dylans.js dylans.cjs
-          fi
-          # 处理 dyland
-          if [ -f dyland ]; then
-            mv dylans dyland.cjs
-          elif [ -f dyland.js ]; then
-            mv dylans.js dyland.cjs
-          fi
-          # 5. 调试查看（请在 Action 日志中确认此输出）
-          echo "==== 最终生成文件列表 ===="
+          # 5. 打印调试信息，确认文件存在
+          echo "==== Function Folder Content ===="
           ls -F
           cd ..
           
-          # 6. 清理临时克隆
           rm -rf temp_upstream
 
       - name: Push Changes
         run: |
-          # 强制添加所有新生成的 .cjs 文件
           git add function/
-          
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Fix: Force sync function folder to .cjs"
+            git commit -m "Fix: Sync function folder and maintain .js suffixes for internal require"
             git push origin main
-          fi
