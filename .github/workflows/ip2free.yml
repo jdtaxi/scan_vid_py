@@ -1,8 +1,8 @@
 name: Auto Update Socksproxy Secret
 
 on:
-  schedule:
-    - cron: '*/30 * * * *'  # 每30分钟运行
+  repository_dispatch: # API 触发：通过 POST 请求到 GitHub API 触发
+    types: [run_ip2free]
   workflow_dispatch:        # 支持手动点运行
 
 jobs:
