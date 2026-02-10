@@ -43,11 +43,11 @@ def split_and_get_my_part(data_list):
 
 def cooldown_sleep(streak):
     if streak == 1:
-        t = random.uniform(8, 12)
+        t = random.uniform(4, 6)
     elif streak == 2:
-        t = random.uniform(15, 25)
+        t = random.uniform(8, 12)
     else:
-        t = random.uniform(25, 40)
+        t = random.uniform(14, 18)
     log(f"🧠 风控冷却 sleep {t:.1f}s", "WARN")
     time.sleep(t)
 
