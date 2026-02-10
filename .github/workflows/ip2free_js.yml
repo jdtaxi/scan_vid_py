@@ -1,0 +1,34 @@
+name: Auto Update Socksproxy Secret (JS Version)
+
+on:
+  repository_dispatch: # 支持通过 API 触发
+    types: [run_ip2free]
+  workflow_dispatch:    # 支持手动点击运行
+  schedule:
+    - cron: '0 1 * * *' # 可选：建议添加定时任务，每天凌晨 9 点左右（北京时间）运行一次
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4 # 升级到 v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # 使用长久支持的 Node 20
+          cache: 'npm'       # 开启 npm 缓存加速
+
+      - name: Install Dependencies
+        # 如果你没有提交 package.json，可以直接在这里安装必要依赖
+        run: npm install libsodium-wrappers
+
+      - name: Run Sync Script
+        env:
+          # 注入环境变量
+          GH_PAT: ${{ secrets.GH_PAT }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          IP2FREE_ACCOUNTS: ${{ secrets.IP2FREE_ACCOUNTS }}
+        # 运行重构后的 JS 脚本
+        run: node index.js
