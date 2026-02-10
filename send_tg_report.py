@@ -31,31 +31,49 @@ def run_report():
     client = DataWorkerClient(WORKER_TOKEN_URL, API_KEY)
     
     # 1. 获取数据
-    yesterday_data = client.get_yesterday_data()  # 昨天的
-    today_data = client.get_today_data()          # 今天的（包含刚刚扫描出的）
+    res_yesterday = client.get_yesterday_data()  # 昨天的
+    res_today = client.get_today_data()          # 今天的（包含刚刚扫描出的）
 
-    # 2. 解析数据 (假设接口返回结构是 {"data": [...]} 或 直接是列表)
-    y_list = yesterday_data.get("data", []) if isinstance(yesterday_data, dict) else yesterday_data
-    t_list = today_data.get("data", []) if isinstance(today_data, dict) else today_data
-    
-    y_count = len(y_list)
-    t_count = len(t_list)
-    
-    # 获取当前北京时间
+    y_list = res_yesterday.get("data", []) if isinstance(res_yesterday, dict) else res_yesterday
+    t_list = res_today.get("data", []) if isinstance(res_today, dict) else res_today
+
+    # 2. 计算数量与新增
+    count_yesterday = len(y_list)
+    count_today = len(t_list)
+    y_tokens = {item['token'] for item in y_list if 'token' in item}
+    t_tokens = {item['token'] for item in t_list if 'token' in item}
+    count_new = len(t_tokens - y_tokens)
+
+    # 3. 根据最后一个元素判断已执行批次
+    batch_info = "0"
+    if t_list:
+        try:
+            last_item_ts = t_list[-1].get('ts_bj', '')
+            # 自动处理不同长度的时间格式
+            fmt = "%Y/%m/%d %H:%M:%S" if ":" in last_item_ts else "%Y/%m/%d %H:%M"
+            last_dt = datetime.strptime(last_item_ts, fmt)
+            
+            # 计算批次：1-46 (对应半小时)
+            current_batch = (last_dt.hour * 2) + (1 if last_dt.minute >= 30 else 0) + 1
+            batch_info = f"{current_batch}"
+        except Exception as e:
+            batch_info = "计算中"
+
+    # 4. 构造消息
     bj_now = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=8)))
     
-    # 3. 构造消息
-    msg = f"📊 *VID 扫描任务汇总报表*\n"
+    msg =  f"📊 *VID 扫描任务汇总报表*\n"
     msg += f"---"
     msg += f"\n⏰ *汇报时间*: `{bj_now.strftime('%H:%M:%S')}`"
-    msg += f"\n📅 *昨日总计 (Token)*: `{y_count}`"
-    msg += f"\n🔥 *今日累计 (Token)*: `{t_count}`"
-    msg += f"\n📈 *今日增长*: `+{max(0, t_count)}`" # 这里逻辑可根据具体需求调整
+    msg += f"\n📅 *昨日 Token 总数*: `{count_yesterday}`"
+    msg += f"\n📅 *今日 Token 总数*: `{count_today}`"
+    msg += f"\n✨ *今日新增 Token*: `+{count_new}`"
     msg += f"\n---"
-    msg += f"\n🚀 *20个分片扫描已全部执行完毕*"
-    msg += f"\n💡 _数据实时同步至 Cloudflare Worker_"
+    msg += f"\n🔢 *任务进度*: 已执行 `{batch_info}/46` 批次"
 
-    send_tg_msg(msg)
+    # 5. 执行打印并发送
+    print(msg)
+    send_tg_msg(msg) 
 
 if __name__ == "__main__":
     run_report()
