@@ -221,7 +221,7 @@ def run_task():
                 """)
 
                 try:
-                    page.goto(f"https://m.jd.com", wait_until="domcontentloaded", timeout=20000)
+                    page.goto(f"https://shop.m.jd.com/shop/home?venderid={vid}", wait_until="domcontentloaded", timeout=20000)
                     page.mouse.move(random.randint(0, 100), random.randint(0, 100))
                     page.mouse.wheel(0, random.randint(500, 800))
                     time.sleep(random.uniform(1.5, 3))
