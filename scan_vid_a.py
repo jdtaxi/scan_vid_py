@@ -225,6 +225,7 @@ def run_task():
                     page.mouse.move(random.randint(0, 100), random.randint(0, 100))
                     page.mouse.wheel(0, random.randint(500, 800))
                     time.sleep(random.uniform(1.5, 3))
+                    log(f"当前页面：({page.url})", "INFO")
 
                     fetch_script = f"""
                     async () => {{
