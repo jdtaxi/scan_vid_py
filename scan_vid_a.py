@@ -118,7 +118,8 @@ def cooldown_sleep(streak):
     #log(f"风控冷却 sleep {t:.1f}s", "RISK")
     time.sleep(t)
 
-def run_task():       
+def run_task(): 
+    global RUN_DURATION_MINUTES
     db_vid = CF_VID(WORKER_VID_URL, API_KEY)
     db_token = CF_TOKEN(WORKER_TOKEN_URL, API_KEY)
 
