@@ -220,7 +220,7 @@ async function runTask() {
         //const signedBody = await dylans.getbody(config);
 
         // 执行接口注入
-        body=`functionId=whx_getShopHomeActivityInfo&body=${encodeURIComponent(JSON.stringify({venderId: vId, source: "m-shop"}))}&appid=shop_m_jd_com&clientVersion=11.0.0&client=wh5&${generateJdContextString()}&x-api-eid-token=${jddToken.token}`
+        body=`functionId=whx_getShopHomeActivityInfo&body=${encodeURIComponent(JSON.stringify({venderId: vid, source: "m-shop"}))}&appid=shop_m_jd_com&clientVersion=11.0.0&client=wh5&${generateJdContextString()}&x-api-eid-token=${jddToken.token}`
         //body=`${signedBody}&x-api-eid-token=${jddToken.token}&${generateJdContextString()}`;
         //log(signedBody, "INFO");
         log(jddToken.token, "INFO");
