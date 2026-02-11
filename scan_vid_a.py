@@ -226,7 +226,25 @@ def run_task():
                     page.mouse.wheel(0, random.randint(500, 800))
                     time.sleep(random.uniform(1.5, 3))
                     log(f"当前页面：({page.url})", "INFO")
-
+                
+                    # 1. 定位元素：使用 src 关键特征码定位，避免被动态 class 坑
+                    # taro-image-core 往往是 Taro 框架封装的组件，点击它或它内部的 img
+                    target_element = page.locator('taro-image-core[src*="ea6a3932293cd51d"]')
+            
+                    # 2. 捕获跳转后的 URL
+                    # 如果点击会打开新窗口，使用 expect_popup；如果在原窗口跳转，直接等待 URL 变化
+                    with page.expect_navigation():
+                        target_element.click()
+                
+                    final_url = page.url
+                    print(f"获取到的全路径: {final_url}")
+                
+                    # 3. 截取 token
+                    # 方式 A：使用 split (简单直接)
+                    token = final_url.split('token=')[-1]
+                    
+                    print(f"截取到的 Token: {token_v2}")
+```
                     fetch_script = f"""
                     async () => {{
                         try {{
@@ -263,7 +281,7 @@ def run_task():
                         if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
                             log(f"连续异常达上限，中断本轮", "ERROR")
                             return False, round_failed
-
+```
                 except Exception as e:
                     consecutive_errors += 1
                     stats["error"] += 1
@@ -274,7 +292,7 @@ def run_task():
                 finally:
                     page.close()
                     time.sleep(random.uniform(4, 6))
-            
+
             return True, round_failed
 
         # --- 核心循环重试逻辑 ---
