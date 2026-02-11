@@ -12,7 +12,7 @@ const { CF_VID, CF_TOKEN } = require('./cf_db.js');
  * 由于 CJS 不是强制严格模式，混淆代码中的 'with' 语句将不会报错。
  */
 const dylib = require('./function/dylib.js');
-const dylans = require('./function/dylans.js');
+
 
 // 如果你需要 __filename 或 __dirname，CJS 是原生支持的，不需要 fileURLToPath
 // console.log(__dirname);
@@ -99,7 +99,7 @@ function generateJdContextString() {
     const params = {
         area: generateArea(),
         screen: Screen.screen,
-        uuid: generateUuid(),
+        //uuid: generateUuid(),
         xAPIClientLanguage: "zh_CN" // 固定值
     };
 
