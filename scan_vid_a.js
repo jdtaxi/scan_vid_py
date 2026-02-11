@@ -51,7 +51,16 @@ const splitAndGetMyPart = (dataList) => {
   // 模拟切分逻辑
   return dataList.slice(Math.floor(idx * avg), Math.floor((idx + 1) * avg));
 };
-
+// 2. 生成 screen (屏幕分辨率)
+// 模拟常见移动端分辨率
+const generateScreen = () => {
+    const widths = [375, 390, 414, 430, 360];
+    const heightMultiplier = [2.16, 2.33, 2.17, 2.41];
+    const w = widths[Math.floor(Math.random() * widths.length)];
+    const h = Math.floor(w * heightMultiplier[Math.floor(Math.random() * heightMultiplier.length)]);
+    return {screen:`${w}*${h}`,w,h};
+};
+// 风控冷却
 async function cooldownSleep(streak) {
   let t = streak === 1 ? Math.random() * 2 + 4 : 
           streak === 2 ? Math.random() * 4 + 8 : 
@@ -59,6 +68,8 @@ async function cooldownSleep(streak) {
   //log(`风控冷却 sleep ${t.toFixed(1)}s`, "RISK");
   await sleep(t * 1000);
 }
+
+
 /**
  * 随机生成京东 H5 请求上下文参数字符串
  */
@@ -73,15 +84,7 @@ function generateJdContextString() {
         return `${p}_${c}_${d}_${t}`;
     };
 
-    // 2. 生成 screen (屏幕分辨率)
-    // 模拟常见移动端分辨率
-    const generateScreen = () => {
-        const widths = [375, 390, 414, 430, 360];
-        const heightMultiplier = [2.16, 2.33, 2.17, 2.41];
-        const w = widths[Math.floor(Math.random() * widths.length)];
-        const h = Math.floor(w * heightMultiplier[Math.floor(Math.random() * heightMultiplier.length)]);
-        return {screen:`${w}*${h}`,w,h};
-    };
+    
 
     // 3. 生成 uuid
     // 逻辑：当前毫秒时间戳 + 10位左右的随机数字
