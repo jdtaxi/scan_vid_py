@@ -28,7 +28,8 @@ const NUM_PARTS = parseInt(process.env.NUM_PARTS || "20");
 const MAX_RETRY_ROUNDS = 3;
 
 const stats = { success: 0, hit: 0, blocked: 0, error: 0, total_scanned: 0 };
-
+const currentUA = dylib['getUA']();
+console.log(currentUA)
 // --- 辅助工具 ---
 const log = (msg, level = "INFO") => {
   const timestamp = new Date().toLocaleTimeString('zh-CN', { hour12: false });
@@ -79,7 +80,7 @@ function generateJdContextString() {
         const heightMultiplier = [2.16, 2.33, 2.17, 2.41];
         const w = widths[Math.floor(Math.random() * widths.length)];
         const h = Math.floor(w * heightMultiplier[Math.floor(Math.random() * heightMultiplier.length)]);
-        return `${w}*${h}`;
+        return {screen:`${w}*${h}`,w,h};
     };
 
     // 3. 生成 uuid
@@ -93,7 +94,7 @@ function generateJdContextString() {
     // 参数组合
     const params = {
         area: generateArea(),
-        screen: generateScreen(),
+        screen: generateScreen().screen,
         uuid: generateUuid(),
         xAPIClientLanguage: "zh_CN" // 固定值
     };
@@ -147,8 +148,8 @@ async function runTask() {
   });
 
   const context = await browser.newContext({
-    userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
-    viewport: { width: 390, height: 844 },
+    userAgent: currentUA,//"Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
+    viewport: { width: generateScreen().w, height: generateScreen().h },
     deviceScaleFactor: 3,
     isMobile: true,
     hasTouch: true,
@@ -197,7 +198,7 @@ async function runTask() {
         await page.mouse.wheel(0, Math.random() * 300 + 500);
         await sleep(Math.random() * 1500 + 1500);
         //增加h5st等
-        const currentUA = dylib['getUA']();
+        
         
         const jddToken = await dylib['jddToken'](currentUA);
 
@@ -206,8 +207,10 @@ async function runTask() {
           "functionId": "whx_getShopHomeActivityInfo",
           "body": { "venderId":vid, "source": "m-shop" },
           "appid": "shop_m_jd_com",
-          "clientVersion": "11.0.0",
-          "client": "ios",
+          "clientVersion": currentUA.split(';')[2],//"11.0.0",
+          "client": currentUA.split(';')[1]==='android'?'android':"ios",//"ios",
+          "code":1,
+          "user":"jd_liuqiangdong",
           "ua": currentUA
         };
         //const signedBody = await dylans.getbody(config);
@@ -222,9 +225,9 @@ async function runTask() {
                 "user-agent": currentUA,
                 "referer": "https://shop.m.jd.com/"
               },
-              //body: `${signedBody}&x-api-eid-token=${jddToken.token}&${generateJdContextString()}`
+              body: `${signedBody}&x-api-eid-token=${jddToken.token}&${generateJdContextString()}`
               //functionId=whx_getShopHomeActivityInfo&body=%7B%22venderId%22%3A%2217868%22%2C%22source%22%3A%22m-shop%22%7D&t=1770723924622&appid=shop_m_jd_com&clientVersion=11.0.0&client=wh5&area=1_72_2799_0&screen=636*1408&uuid=17707234355951389497624&xAPIClientLanguage=zh_CN&h5st=20260210194527631%3B9z6gtm3itdwh36h5%3Bea491%3Btk03w82e21beb18nCPX67Xd8b9oUBFkkvL54f4PNvko4WcNGCf8hix-i6FLB3p8ZFtGkZuEZthqq_vM95DGyoMbw_hCQ%3B66557b3bf07520792b9114884ee00dc6d834716688b0f611cffc4a37e9bbf495%3B5.2%3B1770723924631%3BfZRCXZPU5IuV5EaIt8rV0QqIr5KT-h-T-h6I-hfZXx-Vvh-T-prJ_YfZB5hW-NbUoZOVsdeIwJLI7I_VodLV98eUsV_U9g_JsFOI7E_I-h-T-h6Q1E7J8E6ZBh-f1ZvV_ULU98OI7UeU7AOI8MeIoVOVrJrUwd_J9M_I8QrU_YfZnZvFAI6GAU7ZBh-f1ZPV0ZfZnZfUsY7ZBh-f1ZPTzZ_WsJqK8wLH7kMU5YfZnZ-E-hfZXx-ZK4NVt9tVAkNPvV6PLYfZnZPGyQ7GAY6ZBh-f1Z-VupLHKYfZnZ-IxYfZB5hWkgfZXZvGbYfZnZvVwN6J-hfZBh-f1ZeZnZPVwN6J-hfZBh-f1ROVB5_ZxdOE-YfZBhfZXxfT0h-T-ZOVsY7ZBhfZB5hW-1bOsZqM4M6Vu8OI-h-T-trG9oLJvYfZBhfZXxfVB5_ZpN6J-hfZBh-f1heZnZvUsY7ZBhfZB5hWrh-T-JOE-YfZBhfZXxfVB5_ZsN6J-hfZBh-f1heZnZfUsY7ZBhfZB5hWxJeZnZvVsY7ZBhfZB5hW-N_WwpfV-h-T-dOE-YfZBhfZXxfVB5_Z2E6ZBhfZB5hWsh-T-VaG-hfZBh-f1heZnZfG-hfZBh-f1heZnZfIqYfZBhfZX1aZnZfIzMbEpM7ZBh-f1tqDB5_Zxg6ZBh-f1Z-OpNORPstW9wLHsYdZshvFsAKITgvTxp-UBRLHyYaIzcdZmBKEz8bO-h-T-dLEuYfZB5xD%3Bc8ef6c97feaf50ee191927adb1bd2f5a9fb16f331807f59fd9c0ca5b3f0240f7%3BgRaW989Gy8bE_oLE7w-Gy8rFvM7MtoLI4wrJ1R6G88bG_wPD9k7J1RLHxgKJ&x-api-eid-token=jdd03LECKTEBYVODALUJUK5RJT7DIRBNR2KLS27VGCACIO6LWUQJ4A5GB4ZR5LUTPIFDA45QLXK5V4VDW4W2AKJJKMF6JSQAAAAM4I5PNESYAAAAACC3ODBGUPTN6EYX
-              body: `functionId=whx_getShopHomeActivityInfo&body=${encodeURIComponent(JSON.stringify({venderId: vId, source: "m-shop"}))}&appid=shop_m_jd_com&clientVersion=11.0.0&client=wh5&x-api-eid-token=${jddToken.token}&${generateJdContextString()}`
+              //body: `functionId=whx_getShopHomeActivityInfo&body=${encodeURIComponent(JSON.stringify({venderId: vId, source: "m-shop"}))}&appid=shop_m_jd_com&clientVersion=11.0.0&client=wh5&x-api-eid-token=${jddToken.token}&${generateJdContextString()}`
             });
             return await res.json();
           } catch (e) {
