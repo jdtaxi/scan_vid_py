@@ -28,6 +28,50 @@ MAX_RETRY_ROUNDS = 3  # 失败重试次数上限
 # =========================================
 
 stats = {"success": 0, "hit": 0, "blocked": 0, "error": 0, 'total_scanned': 0}
+import random
+
+def generate_device_profile():
+    # 定义真实设备的物理参数库 (逻辑分辨率)
+    # 格式: { "设备名": (width, height, pixel_ratio) }
+    device_configs = {
+        "iPhone 15/14/13 Pro": {"width": 390, "height": 844, "ratio": 3},
+        "iPhone 15/14 Pro Max": {"width": 430, "height": 932, "ratio": 3},
+        "Pixel 7": {"width": 412, "height": 915, "ratio": 2.6},
+        "Samsung Galaxy S23": {"width": 360, "height": 800, "ratio": 3},
+        "Xiaomi 13": {"width": 393, "height": 873, "ratio": 3}
+    }
+    
+    device_name = random.choice(list(device_configs.keys()))
+    config = device_configs[device_name]
+    
+    # 稍微给尺寸加一点“波动”（模拟某些浏览器UI占用导致的差异，可选）
+    # 但通常直接使用逻辑分辨率是最稳妥的
+    viewport = {
+        "width": config["width"],
+        "height": config["height"]
+    }
+    
+    # 匹配对应的 UA
+    if "iPhone" in device_name:
+        ua = f"Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+    else:
+        chrome_ver = f"{random.randint(140, 146)}.0.{random.randint(6000, 7000)}.100"
+        ua = f"Mozilla/5.0 (Linux; Android 14; {device_name}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{chrome_ver} Mobile Safari/537.36"
+        
+    return {
+        "device": device_name,
+        "ua": ua,
+        "viewport": viewport,
+        "deviceScaleFactor": config["ratio"] # 很多人会漏掉这个关键的缩放因子
+    }
+
+# 生成示例
+profile = generate_device_profile()
+print(f"模拟设备: {profile['device']}")
+Viewport=profile['viewport']
+print(f"Viewport: {Viewport}")
+user_agent=profile['ua']
+print(f"User-Agent: {user_agent}")
 
 def log(msg, level="INFO"):
     timestamp = time.strftime("%H:%M:%S", time.localtime())
@@ -98,9 +142,9 @@ def run_task():
         )
 
         context = browser.new_context(
-            user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
-            viewport={'width': 390, 'height': 844},
-            device_scale_factor=3,
+            user_agent=user_agent,
+            viewport=Viewport,
+            device_scale_factor=Viewport["ratio"],
             is_mobile=True,
             has_touch=True,
             locale="zh-CN",
