@@ -97,7 +97,7 @@ function generateJdContextString() {
 
     // 参数组合
     const params = {
-        area: generateArea(),
+        //area: generateArea(),
         screen: Screen.screen,
         //uuid: generateUuid(),
         xAPIClientLanguage: "zh_CN" // 固定值
