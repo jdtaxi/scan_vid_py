@@ -49,7 +49,7 @@ jobs:
           NUM_PARTS: ${{ vars.NUM_PARTS }}
           COPIES: ${{ vars.COPIES }}
           SOCKSPROXY: ${{ secrets.SOCKSPROXY }}
-          REPO: ${{ secrets.REPO }}
+          REPO: ${{ vars.REPO }}
         run: |
           # 动态复制文件以匹配你脚本中的正则解析索引逻辑
           cp scan_vid_a.py scan_vid_a_${{ matrix.index }}.py
