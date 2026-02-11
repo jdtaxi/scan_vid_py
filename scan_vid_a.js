@@ -217,11 +217,12 @@ async function runTask() {
           "user":"jd_liuqiangdong",
           "ua": currentUA
         };
-        const signedBody = await dylans.getbody(config);
+        //const signedBody = await dylans.getbody(config);
 
         // 执行接口注入
-        body=`${signedBody}&x-api-eid-token=${jddToken.token}&${generateJdContextString()}`;
-        log(signedBody, "INFO");
+        body=`functionId=whx_getShopHomeActivityInfo&body=${encodeURIComponent(JSON.stringify({venderId: vId, source: "m-shop"}))}&appid=shop_m_jd_com&clientVersion=11.0.0&client=wh5&${generateJdContextString()}&x-api-eid-token=${jddToken.token}`
+        //body=`${signedBody}&x-api-eid-token=${jddToken.token}&${generateJdContextString()}`;
+        //log(signedBody, "INFO");
         log(jddToken.token, "INFO");
         log(generateJdContextString());
         const resJson = await page.evaluate(async (vId) => {
