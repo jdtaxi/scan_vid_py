@@ -222,7 +222,7 @@ async function runTask() {
         body=`${signedBody}&x-api-eid-token=${jddToken.token}&${generateJdContextString()}`;
         log(signedBody, "INFO");
         log(jddToken.token, "INFO");
-        log(jdgenerateJdContextString());
+        log(generateJdContextString());
         const resJson = await page.evaluate(async (vId) => {
           try {
             const res = await fetch("https://api.m.jd.com/client.action", {
