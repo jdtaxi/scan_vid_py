@@ -266,7 +266,7 @@ async function runTask() {
         stats.error++;
         consecutiveErrors++;
         roundFailed.push(vid);
-        log(`${roundTag}${stats.total_scanned}->店铺 ${vid} 异常: ${e.message}`, "WARN");
+        log(`${roundTag}${stats.total_scanned}->店铺 ${vid} 异常3: ${e.toString()}`, "WARN");
 
         if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
           log("连续异常达上限，中断本轮", "ERROR");
