@@ -53,8 +53,8 @@ jobs:
           REPO: ${{ vars.REPO }}
         run: |
           # 动态复制文件以匹配你脚本中的正则解析索引逻辑
-          cp scan_vid_b.py scan_vid_b_${{ matrix.index }}.py
-          python -u scan_vid_b_${{ matrix.index }}.py
+          cp scan_vid_a.py scan_vid_a_${{ matrix.index }}.py
+          python -u scan_vid_a_${{ matrix.index }}.py
 
   report:
     runs-on: ubuntu-latest
