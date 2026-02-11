@@ -28,7 +28,7 @@ const NUM_PARTS = parseInt(process.env.NUM_PARTS || "20");
 const MAX_RETRY_ROUNDS = 3;
 
 const stats = { success: 0, hit: 0, blocked: 0, error: 0, total_scanned: 0 };
-const currentUA = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1";//dylib['getUA']();
+const currentUA = dylib['getUA']();
 console.log(currentUA)
 // --- 辅助工具 ---
 const log = (msg, level = "INFO") => {
