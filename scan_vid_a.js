@@ -28,7 +28,7 @@ const NUM_PARTS = parseInt(process.env.NUM_PARTS || "20");
 const MAX_RETRY_ROUNDS = 3;
 
 const stats = { success: 0, hit: 0, blocked: 0, error: 0, total_scanned: 0 };
-const currentUA = dylib['getUA']();
+const currentUA = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1";//dylib['getUA']();
 console.log(currentUA)
 // --- 辅助工具 ---
 const log = (msg, level = "INFO") => {
@@ -211,8 +211,8 @@ async function runTask() {
           "functionId": "whx_getShopHomeActivityInfo",
           "body": { "venderId":vid, "source": "m-shop" },
           "appid": "shop_m_jd_com",
-          "clientVersion": currentUA.split(';')[2],//"11.0.0",
-          "client": currentUA.split(';')[1]==='android'?'android':"ios",//"ios",
+          "clientVersion": currentUA.split(';')[2]||"11.0.0",
+          "client": currentUA.split(';')[1]==='android'?'android':"ios"||"wh5",
           "code":1,
           "user":"jd_liuqiangdong",
           "ua": currentUA
