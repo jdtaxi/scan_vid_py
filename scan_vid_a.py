@@ -244,8 +244,8 @@ def run_task():
                     token = final_url.split('token=')[-1]
                     
                     print(f"截取到的 Token: {token_v2}")
-```
-                    fetch_script = f"""
+                    """
+                    fetch_script = f
                     async () => {{
                         try {{
                             const res = await fetch("https://api.m.jd.com/client.action", {{
@@ -258,7 +258,7 @@ def run_task():
                             return {{ code: "-1", msg: e.toString() }};
                         }}
                     }}
-                    """
+                   
                     res_json = page.evaluate(fetch_script)
 
                     if res_json and res_json.get("code") == "0":
@@ -281,7 +281,7 @@ def run_task():
                         if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
                             log(f"连续异常达上限，中断本轮", "ERROR")
                             return False, round_failed
-```
+                """
                 except Exception as e:
                     consecutive_errors += 1
                     stats["error"] += 1
