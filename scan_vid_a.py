@@ -67,6 +67,7 @@ def generate_device_profile():
 
 # 生成示例
 profile = generate_device_profile()
+device_scale_factor=profile['deviceScaleFactor']
 print(f"模拟设备: {profile['device']}")
 Viewport=profile['viewport']
 print(f"Viewport: {Viewport}")
@@ -144,7 +145,7 @@ def run_task():
         context = browser.new_context(
             user_agent=user_agent,
             viewport=Viewport,
-            device_scale_factor=Viewport["ratio"],
+            device_scale_factor=device_scale_factor,
             is_mobile=True,
             has_touch=True,
             locale="zh-CN",
