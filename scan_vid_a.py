@@ -142,6 +142,7 @@ def run_task():
     log(f"任务分配: 本分片({slice_idx}-{REPO})执行 {len(vender_ids)} 条", "INFO")
     # 最长运行时间校正，设定值减去当前超出0分或30分的分钟数，防止到0分或30分脚本不停。
     RUN_DURATION_MINUTES=RUN_DURATION_MINUTES-(bj_now.minute-30 if bj_now.minute >= 30 else bj_now.minute)
+    log(f"修正分钟数({bj_now.minute-30 if bj_now.minute >= 30 else bj_now.minute})，将运行 {RUN_DURATION_MINUTES}分钟。", "INFO")
 
     if not vender_ids:
         return
