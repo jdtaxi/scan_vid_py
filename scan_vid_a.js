@@ -238,6 +238,7 @@ async function runTask() {
             });
             return await res.json();
           } catch (e) {
+            log(`${roundTag}${stats.total_scanned}->店铺 ${vid} 异常: ${e.toString()}`, "WARN");
             return { code: "-1", msg: e.toString() };
           }
         }, vid);
