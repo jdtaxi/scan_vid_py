@@ -24,6 +24,7 @@ RUN_DURATION_MINUTES = int(os.environ.get("RUN_DURATION_MINUTES", 10))
 MAX_CONSECUTIVE_ERRORS = 10
 COPIES = int(os.environ.get("COPIES", 46))
 NUM_PARTS = int(os.environ.get("NUM_PARTS", 20))
+REPO = int(os.environ.get("REPO", 1))
 MAX_RETRY_ROUNDS = 3  # 失败重试次数上限
 # =========================================
 
@@ -87,7 +88,26 @@ def split_and_get_my_part(data_list):
     parts = [data_list[int(i * avg): int((i + 1) * avg)] for i in range(NUM_PARTS)]
     idx = (script_idx - 1) if script_idx > 0 else 0
     return parts[idx] if idx < len(parts) else []
-
+    
+def get_halved_array(data_list, repo_val):
+    """
+    根据 REPO 的值获取数组的前半部分或后半部分。
+    repo_val: 1 表示前半部分，2 表示后半部分
+    """
+    length = len(data_list)
+    
+    # 使用整除 // 找到中点
+    mid = length // 2
+    
+    if repo_val == 1:
+        # 获取 [0, mid) 的元素
+        return data_list[:mid]
+    elif repo_val == 2:
+        # 获取 [mid, length) 的元素
+        return data_list[mid:]
+    else:
+        raise ValueError("REPO 的值必须是 1 或 2")
+        
 def cooldown_sleep(streak):
     if streak == 1:
         t = random.uniform(4, 6)
@@ -118,8 +138,8 @@ def run_task():
     # 这里建议确保你的环境变量 COPIES 设置为 48
     result = db_vid.get_data_slice(copy=slice_idx, copies=COPIES)
     vender_ids = split_and_get_my_part(result.get("data", []))
-    
-    log(f"任务分配: 本分片({slice_idx})执行 {len(vender_ids)} 条", "INFO")
+    vender_ids = get_halved_array(vender_ids, REPO)
+    log(f"任务分配: 本分片({slice_idx}-{REPO})执行 {len(vender_ids)} 条", "INFO")
 
     if not vender_ids:
         return
