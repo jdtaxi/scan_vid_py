@@ -223,8 +223,8 @@ async function runTask() {
         body=`functionId=whx_getShopHomeActivityInfo&body=${encodeURIComponent(JSON.stringify({venderId: vid, source: "m-shop"}))}&appid=shop_m_jd_com&clientVersion=11.0.0&client=wh5&${generateJdContextString()}&x-api-eid-token=${jddToken.token}`
         //body=`${signedBody}&x-api-eid-token=${jddToken.token}&${generateJdContextString()}`;
         //log(signedBody, "INFO");
-        log(jddToken.token, "INFO");
-        log(generateJdContextString());
+        //log(jddToken.token, "INFO");
+        //log(generateJdContextString());
         const resJson = await page.evaluate(async (vId) => {
           try {
             const res = await fetch("https://api.m.jd.com/client.action", {
