@@ -220,7 +220,9 @@ async function runTask() {
 
         // 执行接口注入
         body=`${signedBody}&x-api-eid-token=${jddToken.token}&${generateJdContextString()}`;
-        log(`${roundTag}${stats.total_scanned}->店铺 ${vid}: ${body[:-20]}`, "INFO");
+        log(signedBody, "INFO");
+        log(jddToken.token, "INFO");
+        log(jdgenerateJdContextString());
         const resJson = await page.evaluate(async (vId) => {
           try {
             const res = await fetch("https://api.m.jd.com/client.action", {
