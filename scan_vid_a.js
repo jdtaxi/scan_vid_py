@@ -241,7 +241,7 @@ async function runTask() {
             return await res.json();
           } catch (e) {
             log(` 异常2: ${e.toString()}`, "WARN");
-            return { code: "-1", msg: e.toString() };
+            return { code: "-2", msg: e.toString() };
           }
         }, vid);
 
