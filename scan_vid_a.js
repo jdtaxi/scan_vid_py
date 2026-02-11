@@ -216,7 +216,7 @@ async function runTask() {
           "user":"jd_liuqiangdong",
           "ua": currentUA
         };
-        //const signedBody = await dylans.getbody(config);
+        const signedBody = await dylans.getbody(config);
 
         // 执行接口注入
         body=`${signedBody}&x-api-eid-token=${jddToken.token}&${generateJdContextString()}`;
