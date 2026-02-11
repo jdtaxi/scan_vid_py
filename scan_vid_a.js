@@ -60,6 +60,7 @@ const generateScreen = () => {
     const h = Math.floor(w * heightMultiplier[Math.floor(Math.random() * heightMultiplier.length)]);
     return {screen:`${w}*${h}`,w,h};
 };
+const Screen =generateScreen()
 // 风控冷却
 async function cooldownSleep(streak) {
   let t = streak === 1 ? Math.random() * 2 + 4 : 
@@ -97,7 +98,7 @@ function generateJdContextString() {
     // 参数组合
     const params = {
         area: generateArea(),
-        screen: generateScreen().screen,
+        screen: Screen.screen,
         uuid: generateUuid(),
         xAPIClientLanguage: "zh_CN" // 固定值
     };
@@ -152,7 +153,7 @@ async function runTask() {
 
   const context = await browser.newContext({
     userAgent: currentUA,//"Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
-    viewport: { width: generateScreen().w, height: generateScreen().h },
+    viewport: { width: Screen.w, height: Screen.h },
     deviceScaleFactor: 3,
     isMobile: true,
     hasTouch: true,
@@ -238,7 +239,7 @@ async function runTask() {
             });
             return await res.json();
           } catch (e) {
-            log(`${roundTag}${stats.total_scanned}->店铺 ${vid} 异常: ${e.toString()}`, "WARN");
+            log(` 异常: ${e.toString()}`, "WARN");
             return { code: "-1", msg: e.toString() };
           }
         }, vid);
